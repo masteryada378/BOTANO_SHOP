@@ -14,7 +14,7 @@ const products = [
         image: "https://via.placeholder.com/150",
     },
 ];
-
+// TODO delete
 const ProductGrid = () => {
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -23,6 +23,7 @@ const ProductGrid = () => {
                     key={product.id}
                     name={product.name}
                     price={product.price}
+                    image={product.image}
                 />
             ))}
         </div>

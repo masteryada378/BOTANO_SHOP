@@ -7,6 +7,7 @@ interface Product {
     id: number;
     title: string;
     price: number;
+    image?: string;
 }
 
 export default function Home() {
@@ -22,6 +23,7 @@ export default function Home() {
                     id: item.id,
                     title: item.title,
                     price: item.price || 0,
+                    image: item.image,
                 }));
                 setProducts(normalized);
             })
@@ -40,6 +42,7 @@ export default function Home() {
                         key={product.id}
                         title={product.title}
                         price={product.price}
+                        image={product.image}
                     />
                 ))}
             </div>

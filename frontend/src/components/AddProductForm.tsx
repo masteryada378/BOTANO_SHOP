@@ -3,6 +3,7 @@ import { useState } from "react";
 export default function AddProductForm() {
     const [title, setTitle] = useState("");
     const [price, setPrice] = useState("");
+    const [image, setImage] = useState(""); // Додано стан для зображення
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -10,6 +11,7 @@ export default function AddProductForm() {
         const newCard = {
             title,
             price: parseFloat(price),
+            image, // Додано поле image
         };
 
         try {
@@ -25,7 +27,8 @@ export default function AddProductForm() {
                 alert("Картка успішно додана!");
                 setTitle("");
                 setPrice("");
-                window.location.reload(); // оновлюємо дані (опціонально)
+                setImage(""); // Очищаємо поле зображення
+                window.location.reload();
             } else {
                 alert("Помилка при додаванні картки");
             }
@@ -53,6 +56,15 @@ export default function AddProductForm() {
                 placeholder="Ціна"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
+                className="w-full p-2 border rounded"
+                required
+            />
+            {/* Додано поле для URL зображення */}
+            <input
+                type="url"
+                placeholder="URL зображення"
+                value={image}
+                onChange={(e) => setImage(e.target.value)}
                 className="w-full p-2 border rounded"
                 required
             />
