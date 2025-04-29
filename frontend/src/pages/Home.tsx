@@ -1,7 +1,7 @@
 import ProductCard from "../components/ProductCard";
-import Header from "../components/Header";
 import AddProductForm from "../components/AddProductForm";
 import { useEffect, useState } from "react";
+import MainLayout from "../layouts/MainLayout";
 
 interface Product {
     id: number;
@@ -14,11 +14,9 @@ export default function Home() {
     const [products, setProducts] = useState<Product[]>([]);
 
     useEffect(() => {
-        // Приклад запиту до бекенду
         fetch("http://localhost:5005/cards")
             .then((res) => res.json())
             .then((data) => {
-                // Перетвори дані, якщо потрібно (наприклад, з поля title → name)
                 const normalized = data.map((item: Product) => ({
                     id: item.id,
                     title: item.title,
@@ -33,10 +31,9 @@ export default function Home() {
     }, []);
 
     return (
-        <div>
-            <Header />
+        <MainLayout>
             <AddProductForm />
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {products.map((product) => (
                     <ProductCard
                         key={product.id}
@@ -46,6 +43,6 @@ export default function Home() {
                     />
                 ))}
             </div>
-        </div>
+        </MainLayout>
     );
 }

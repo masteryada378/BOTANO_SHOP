@@ -1,5 +1,5 @@
 import { Card } from "../types/Card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { updateCard } from "../services/cardService";
 
 interface EditProductModalProps {
@@ -16,6 +16,10 @@ export const EditProductModal = ({
     onUpdate,
 }: EditProductModalProps) => {
     const [formData, setFormData] = useState<Card>(card);
+
+    useEffect(() => {
+        setFormData(card);
+    }, [card]);
 
     if (!isOpen) return null;
 
