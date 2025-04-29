@@ -13,6 +13,27 @@ interface Product {
 export default function Home() {
     const [products, setProducts] = useState<Product[]>([]);
 
+    const fetchProducts = () => {
+        fetch("http://localhost:5005/cards")
+            .then((res) => res.json())
+            .then((data) => {
+                const normalized = data.map((item: Product) => ({
+                    id: item.id,
+                    title: item.title,
+                    price: item.price || 0,
+                    image: item.image,
+                }));
+                setProducts(normalized);
+            })
+            .catch((err) =>
+                console.error("Помилка при завантаженні карток:", err)
+            );
+    };
+
+    useEffect(() => {
+        fetchProducts();
+    }, []);
+
     useEffect(() => {
         fetch("http://localhost:5005/cards")
             .then((res) => res.json())
@@ -36,10 +57,11 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                 {products.map((product) => (
                     <ProductCard
-                        key={product.id}
+                        id={product.id}
                         title={product.title}
                         price={product.price}
                         image={product.image}
+                        onUpdate={fetchProducts}
                     />
                 ))}
             </div>

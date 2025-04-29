@@ -1,23 +1,49 @@
-type ProductProps = {
-    title: string;
-    price: number;
-    image?: string;
-};
+import DeleteButton from "./DeleteButton";
+import { useState } from "react";
+import { EditProductModal } from "./EditProductModal";
+import { Card } from "../types/Card";
 
-export default function ProductCard({ title, price, image }: ProductProps) {
+interface ProductCardProps extends Card {
+    onUpdate: () => void;
+}
+
+export default function ProductCard({
+    id,
+    title,
+    price,
+    image,
+    onUpdate,
+}: ProductCardProps) {
+    const [isEditOpen, setIsEditOpen] = useState(false);
+
     return (
-        <div className="border rounded-xl p-4 shadow hover:scale-105 transition">
+        <div className="border p-4 rounded shadow bg-white flex flex-col items-center">
             {image && (
                 <img
                     src={image}
                     alt={title}
-                    className="w-32 h-32 object-cover mb-4 rounded"
+                    className="h-40 object-cover mb-2"
                 />
             )}
-            <h2 className="text-lg font-semibold">{title}</h2>
-            <p className="text-green-700 font-bold mt-2">
-                ${Number(price).toFixed(2)}
-            </p>
+            <h3 className="text-xl font-semibold">{title}</h3>
+            <p className="text-gray-700">{price} грн</p>
+
+            <div className="flex gap-2 mt-4">
+                <button
+                    onClick={() => setIsEditOpen(true)}
+                    className="bg-yellow-500 text-white px-3 py-1 rounded text-sm"
+                >
+                    Редагувати
+                </button>
+                <DeleteButton cardId={id} onDelete={onUpdate} />
+            </div>
+
+            <EditProductModal
+                card={{ id, title, price, image }}
+                isOpen={isEditOpen}
+                onClose={() => setIsEditOpen(false)}
+                onUpdate={onUpdate}
+            />
         </div>
     );
 }
