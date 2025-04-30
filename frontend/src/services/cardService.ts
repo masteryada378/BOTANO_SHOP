@@ -16,7 +16,19 @@ export const updateCard = async (card: Card) => {
     });
 };
 
+// export const deleteCard = async (id: number) => {
+//     console.log("js", id);
+//     await axios.delete(`${API_URL}/${id}`);
+// };
+
+// export const deleteCard = async (id: number) => {
+//     await axios.delete(`${API_URL}/${id.toString()}`); // Конвертація в рядок для URL
+// };
 export const deleteCard = async (id: number) => {
-    console.log("js", id);
-    await axios.delete(`${API_URL}/${id}`);
+    try {
+        await axios.delete(`${API_URL}/${id}`);
+    } catch (error) {
+        console.error("Full error context:", error);
+        throw error;
+    }
 };

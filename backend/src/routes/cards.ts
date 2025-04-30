@@ -65,23 +65,30 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
 
 router.delete("/:id", async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
+    console.log("Received DELETE for ID:", id); // Логування отриманого ID
 
-    console.log("Цей консоль не зпрацьовує", id);
+    // Конвертація в число з перевіркою
+    const cardId = parseInt(id, 10);
+    if (isNaN(cardId)) {
+        console.error("Invalid ID format:", id);
+        res.status(400).json({ error: "Invalid ID format" });
+    }
 
     try {
         const [result] = await pool.query("DELETE FROM cards WHERE id = ?", [
-            id,
+            cardId,
         ]);
+        console.log("DB result:", result); // Логування результату запиту
 
         if ((result as any).affectedRows === 0) {
-            console.log("тутаs");
+            console.log("No card found with ID:", cardId);
             res.status(404).json({ error: "Card not found" });
-            return;
         }
 
+        console.log("Successfully deleted card ID:", cardId);
         res.status(204).send();
     } catch (err) {
-        console.error("DB error:", err);
+        console.error("DB deletion error:", err);
         res.status(500).json({ error: "Database error" });
     }
 });
