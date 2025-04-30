@@ -63,4 +63,27 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
     }
 });
 
+router.delete("/:id", async (req: Request<{ id: string }>, res: Response) => {
+    const { id } = req.params;
+
+    console.log("Цей консоль не зпрацьовує", id);
+
+    try {
+        const [result] = await pool.query("DELETE FROM cards WHERE id = ?", [
+            id,
+        ]);
+
+        if ((result as any).affectedRows === 0) {
+            console.log("тутаs");
+            res.status(404).json({ error: "Card not found" });
+            return;
+        }
+
+        res.status(204).send();
+    } catch (err) {
+        console.error("DB error:", err);
+        res.status(500).json({ error: "Database error" });
+    }
+});
+
 export default router;
