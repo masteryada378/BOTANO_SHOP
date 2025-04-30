@@ -9,6 +9,7 @@ export const fetchCards = async () => {
 };
 
 export const updateCard = async (card: Card) => {
+    console.log(card);
     await axios.put(`${API_URL}/${card.id}`, {
         title: card.title,
         price: card.price,
@@ -17,5 +18,6 @@ export const updateCard = async (card: Card) => {
 };
 
 export const deleteCard = async (id: number) => {
+    console.log(id);
     await axios.delete(`${API_URL}/${id}`);
 };

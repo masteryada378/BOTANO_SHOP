@@ -2,9 +2,11 @@ import DeleteButton from "./DeleteButton";
 import { useState } from "react";
 import { EditProductModal } from "./EditProductModal";
 import { Card } from "../types/Card";
+import { deleteCard } from "../services/cardService";
 
 interface ProductCardProps extends Card {
     onUpdate: () => void;
+    onDelete: () => void;
 }
 
 export default function ProductCard({
@@ -13,8 +15,18 @@ export default function ProductCard({
     price,
     image,
     onUpdate,
+    onDelete,
 }: ProductCardProps) {
     const [isEditOpen, setIsEditOpen] = useState(false);
+
+    const handleDelete = async () => {
+        try {
+            await deleteCard(id);
+            onDelete();
+        } catch (err) {
+            console.error("Помилка видалення:", err);
+        }
+    };
 
     return (
         <div className="border p-4 rounded shadow bg-white flex flex-col items-center">
@@ -35,7 +47,7 @@ export default function ProductCard({
                 >
                     Редагувати
                 </button>
-                <DeleteButton cardId={id} onDelete={onUpdate} />
+                <DeleteButton cardId={id} onDelete={handleDelete} />
             </div>
 
             <EditProductModal
