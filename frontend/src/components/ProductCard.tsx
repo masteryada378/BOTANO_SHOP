@@ -19,15 +19,6 @@ export default function ProductCard({
 }: ProductCardProps) {
     const [isEditOpen, setIsEditOpen] = useState(false);
 
-    // const handleDelete = async () => {
-    //     try {
-    //         await deleteCard(id);
-    //         onDelete();
-    //     } catch (err) {
-    //         console.error("Помилка видалення:", err);
-    //     }
-    // };
-
     return (
         <div className="border p-4 rounded shadow bg-white flex flex-col items-center">
             {image && (
