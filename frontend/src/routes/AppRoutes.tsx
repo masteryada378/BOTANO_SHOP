@@ -23,6 +23,8 @@ const router = createBrowserRouter([
     },
 ]);
 
+//  <Toaster />
+
 export const AppRoutes: React.FC = () => {
     return <RouterProvider router={router} />;
 };
