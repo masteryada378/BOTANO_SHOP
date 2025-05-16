@@ -23,6 +23,7 @@ const router = createBrowserRouter([
     },
 ]);
 
+// TODO
 //  <Toaster />
 
 export const AppRoutes: React.FC = () => {
