@@ -2,7 +2,6 @@ import DeleteButton from "./DeleteButton";
 import { useState } from "react";
 import { EditProductModal } from "./EditProductModal";
 import { Card } from "../types/Card";
-// import { deleteCard } from "../services/cardService";
 
 interface ProductCardProps extends Card {
     onUpdate: () => void;
