@@ -25,6 +25,7 @@ public/assets/
 *.woff
 *.woff2
 
-*.json
-!package.json
-!tsconfig.json
+coverage/
+.vite/
+.cache/
+

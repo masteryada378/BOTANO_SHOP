@@ -4,7 +4,7 @@
 Навіть якщо я пишу англійською термінологією, твої пояснення мають бути українською.
 
 # Технологічний стек
-- Frontend: React (Vite), TypeScript, Tailwind CSS.
+- Frontend: React 19 + Vite, TypeScript, Tailwind CSS.
 - State Management: React Context
 - Backend: Node.js, Express, TypeScript.
 - Database: MySQL.
@@ -16,7 +16,46 @@
 3. Для стилізації використовуй тільки Tailwind CSS. Дотримуйся мобільного підходу (mobile-first).
 4. Структура API: Контролери -> Сервіси -> Моделі.
 5. Кожне рішення пояснюй коротко: "Чому ми це робимо?".
+6. Не переписуй великі частини проєкту без запиту.
 
 # Специфіка проєкту: "Інтернет-магазин для гіків"
 - Дизайн має бути сучасним, з елементами "гік-культури" (темна тема, яскраві акценти, можливо шрифти типу JetBrains Mono для елементів ціни).
-- Передбач масштабованість для категорій: комікси, фігурки, девайси.
+- Передбач масштабованість для категорій: комікси, фігурки, девайси, адмінка.
+
+
+FRONTEND RULES
+
+Use modern React patterns:
+
+- functional components
+- hooks
+- strict TypeScript
+- small reusable components
+
+Avoid:
+
+- class components
+- large components
+- implicit any
+- deeply nested props
+
+Always show reasoning before code changes.
+
+OFFICIAL DOCUMENTATION
+
+When writing or refactoring code prefer official documentation and best practices.
+
+React
+https://react.dev
+
+TypeScript
+https://www.typescriptlang.org/docs/
+
+Node.js
+https://nodejs.org/en/docs
+
+Vite
+https://vitejs.dev/guide/
+
+TailwindCSS
+https://tailwindcss.com/docs
