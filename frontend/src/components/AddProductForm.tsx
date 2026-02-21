@@ -37,40 +37,46 @@ export default function AddProductForm() {
         }
     };
 
+    const inputClass =
+        "w-full rounded-md bg-gray-800 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 ring-1 ring-gray-700 outline-none focus:ring-violet-500 transition";
+
     return (
         <form
             onSubmit={handleSubmit}
-            className="p-4 space-y-4 max-w-md mx-auto"
+            aria-label="Додати новий товар"
+            className="rounded-xl border border-gray-700 bg-gray-800/50 p-5 space-y-3 max-w-lg"
         >
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-4">
+                Додати товар
+            </h2>
             <input
                 type="text"
-                placeholder="Назва товару"
+                placeholder="Назва товару (напр. Spider-Man #1)"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full p-2 border rounded"
+                className={inputClass}
                 required
             />
             <input
                 type="number"
                 step="0.01"
-                placeholder="Ціна"
+                placeholder="Ціна, ₴"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full p-2 border rounded"
+                className={inputClass}
                 required
             />
-            {/* Додано поле для URL зображення */}
             <input
                 type="url"
                 placeholder="URL зображення"
                 value={image}
                 onChange={(e) => setImage(e.target.value)}
-                className="w-full p-2 border rounded"
+                className={inputClass}
                 required
             />
             <button
                 type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                className="w-full rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-500 transition-colors"
             >
                 Додати товар
             </button>
