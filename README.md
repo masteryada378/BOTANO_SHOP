@@ -13,4 +13,30 @@
 
 ## ⚙️ Встановлення та запуск
 
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 docker-compose up --build
+```
+
+## 🛠 Налаштування оточення (Environment Variables)
+
+Для роботи проєкту необхідно створити локальні `.env` файли на основі прикладів.
+
+### Backend (`backend/.env`)
+
+| Змінна         | Обов'язкова | Опис                                    |
+| -------------- | ----------- | --------------------------------------- |
+| `PORT`         | ✅           | Порт, на якому запускається Express     |
+| `DB_HOST`      | ✅           | Хост MySQL (у Docker — ім'я сервісу `db`) |
+| `DB_PORT`      | ✅           | Порт MySQL (за замовчуванням `3306`)    |
+| `DB_NAME`      | ✅           | Назва бази даних                        |
+| `DB_USER`      | ✅           | Користувач БД                           |
+| `DB_PASSWORD`  | ✅           | Пароль БД                               |
+| `FRONTEND_URL` | ✅           | URL фронтенду для CORS                  |
+
+### Frontend (`frontend/.env`)
+
+| Змінна         | Обов'язкова | Опис                              |
+| -------------- | ----------- | --------------------------------- |
+| `VITE_API_URL` | ✅           | URL бекенду (наприклад `http://localhost:5005/api`) |
