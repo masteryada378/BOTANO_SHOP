@@ -9,8 +9,11 @@ services:
             - ./backend:/app
         environment:
             - PORT=5005
+        # --- Task #4: Wait for DB to be healthy ---
         depends_on:
-            - db
+            db:
+                condition: service_healthy
+        # ------------------------------------------
         networks:
             - botano_network
     frontend:
