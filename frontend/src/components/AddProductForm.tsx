@@ -1,39 +1,26 @@
 import { useState } from "react";
+import { createCard } from "../services/cardService";
 
 export default function AddProductForm() {
     const [title, setTitle] = useState("");
     const [price, setPrice] = useState("");
-    const [image, setImage] = useState(""); // Додано стан для зображення
+    const [image, setImage] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const newCard = {
-            title,
-            price: parseFloat(price),
-            image, // Додано поле image
-        };
-
         try {
-            const res = await fetch("http://localhost:5005/cards", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(newCard),
-            });
-
-            if (res.ok) {
-                alert("Картка успішно додана!");
-                setTitle("");
-                setPrice("");
-                setImage(""); // Очищаємо поле зображення
-                window.location.reload();
-            } else {
-                alert("Помилка при додаванні картки");
-            }
+            // createCard повертає Promise<Card> — хардкод URL відсутній,
+            // вся логіка транспорту інкапсульована у сервісі.
+            await createCard({ title, price: parseFloat(price), image });
+            alert("Картка успішно додана!");
+            setTitle("");
+            setPrice("");
+            setImage("");
+            window.location.reload();
         } catch (err) {
             console.error("Помилка запиту:", err);
+            alert("Помилка при додаванні картки");
         }
     };
 
