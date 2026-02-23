@@ -31,8 +31,8 @@
 - **SOLID:** кожен модуль має одну відповідальність, мінімум залежностей між шарами.
 - **DRY:** спільні типи, UI-патерни, утиліти й API-клієнт без копіпасту.
 - **Clean Architecture (прагматично):**
-  - Backend: `routes -> controllers -> services -> models`.
-  - Frontend: `pages/features/components/services/types`.
+    - Backend: `routes -> controllers -> services -> models`.
+    - Frontend: `pages/features/components/services/types`.
 - **TypeScript strict:** без `any`; DTO/response/request типізовані.
 - **Mobile-first:** Bottom Navigation, drawer для фільтрів, flex/grid, мінімум absolute/fixed.
 

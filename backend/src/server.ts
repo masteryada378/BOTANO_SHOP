@@ -13,7 +13,7 @@ app.use(
     cors({
         origin: "http://localhost:5173", // Ваш фронтенд-URL
         methods: ["GET", "POST", "PUT", "DELETE"],
-    })
+    }),
 );
 app.use(express.json());
 

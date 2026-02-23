@@ -21,7 +21,7 @@ router.post("/", async (req: Request, res: Response) => {
     try {
         const [result] = await pool.query(
             "INSERT INTO cards (title, price, image) VALUES (?, ?, ?)",
-            [title, price, image]
+            [title, price, image],
         );
 
         const newCard = {
@@ -46,7 +46,7 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
     try {
         const [result] = await pool.query(
             "UPDATE cards SET title = ?, price = ?, image = ? WHERE id = ?",
-            [title, price, image, id]
+            [title, price, image, id],
         );
 
         if ((result as any).affectedRows === 0) {

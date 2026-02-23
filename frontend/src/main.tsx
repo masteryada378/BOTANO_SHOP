@@ -13,5 +13,5 @@ createRoot(root!).render(
         <Suspense fallback="BOTANOSHOP...">
             <App />
         </Suspense>
-    </StrictMode>
+    </StrictMode>,
 );

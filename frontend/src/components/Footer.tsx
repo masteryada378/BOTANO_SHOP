@@ -49,12 +49,13 @@ const Footer = () => {
             {/* JSON-LD structured data */}
             <script
                 type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify(organizationSchema),
+                }}
             />
 
             <div className="container mx-auto max-w-7xl px-4 py-12">
                 <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-3">
-
                     {/* Brand */}
                     <div className="flex flex-col gap-4">
                         <Link
@@ -70,8 +71,9 @@ const Footer = () => {
                             </span>
                         </Link>
                         <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
-                            Магазин для справжніх гіків. Комікси Marvel та DC, аніме-фігурки,
-                            ретро-девайси та рідкісні колекційні видання — все в одному місці.
+                            Магазин для справжніх гіків. Комікси Marvel та DC,
+                            аніме-фігурки, ретро-девайси та рідкісні колекційні
+                            видання — все в одному місці.
                         </p>
                         {/* Social links */}
                         <div className="flex gap-3">

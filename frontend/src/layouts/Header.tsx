@@ -1,13 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import {
-    ShoppingCart,
-    User,
-    Search,
-    Menu,
-    X,
-    Zap,
-} from "lucide-react";
+import { ShoppingCart, User, Search, Menu, X, Zap } from "lucide-react";
 
 const NAV_LINKS = [
     { to: "/", label: "Головна" },
@@ -33,7 +26,6 @@ const Header = () => {
     return (
         <header className="sticky top-0 z-50 bg-gray-900/95 backdrop-blur-md border-b border-gray-800">
             <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4">
-
                 {/* Logo */}
                 <Link
                     to="/"
@@ -49,9 +41,17 @@ const Header = () => {
                 </Link>
 
                 {/* Desktop Nav */}
-                <nav aria-label="Головне меню" className="hidden md:flex items-center gap-6">
+                <nav
+                    aria-label="Головне меню"
+                    className="hidden md:flex items-center gap-6"
+                >
                     {NAV_LINKS.map(({ to, label }) => (
-                        <NavLink key={to} to={to} className={navLinkClass} end={to === "/"}>
+                        <NavLink
+                            key={to}
+                            to={to}
+                            className={navLinkClass}
+                            end={to === "/"}
+                        >
                             {label}
                         </NavLink>
                     ))}
@@ -97,7 +97,9 @@ const Header = () => {
                     {/* Hamburger — mobile only */}
                     <button
                         onClick={toggleMenu}
-                        aria-label={isMenuOpen ? "Закрити меню" : "Відкрити меню"}
+                        aria-label={
+                            isMenuOpen ? "Закрити меню" : "Відкрити меню"
+                        }
                         aria-expanded={isMenuOpen}
                         aria-controls="mobile-menu"
                         className="ml-1 rounded-md p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors md:hidden"
@@ -143,7 +145,10 @@ const Header = () => {
                     aria-modal="true"
                     className="border-t border-gray-800 bg-gray-900 md:hidden"
                 >
-                    <ul className="container mx-auto flex flex-col px-4 py-4 gap-1" role="list">
+                    <ul
+                        className="container mx-auto flex flex-col px-4 py-4 gap-1"
+                        role="list"
+                    >
                         {NAV_LINKS.map(({ to, label }) => (
                             <li key={to}>
                                 <NavLink

@@ -28,7 +28,9 @@ export default function ProductCard({
                 />
             )}
             <h3 className="text-base font-semibold text-gray-100">{title}</h3>
-            <p className="mt-1 font-mono text-sm font-bold text-violet-400">{price} ₴</p>
+            <p className="mt-1 font-mono text-sm font-bold text-violet-400">
+                {price} ₴
+            </p>
 
             <div className="flex gap-2 mt-auto pt-4">
                 <button
