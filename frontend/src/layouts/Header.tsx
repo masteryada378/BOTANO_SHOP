@@ -85,7 +85,6 @@ const Header = () => {
                         </span>
                     </Link>
 
-                    {/* Profile */}
                     <Link
                         to="/profile"
                         aria-label="Профіль користувача"
@@ -94,7 +93,6 @@ const Header = () => {
                         <User size={20} aria-hidden="true" />
                     </Link>
 
-                    {/* Hamburger — mobile only */}
                     <button
                         onClick={toggleMenu}
                         aria-label={
