@@ -59,7 +59,6 @@ const Header = () => {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                    {/* Search toggle */}
                     <button
                         onClick={() => setIsSearchOpen((prev) => !prev)}
                         aria-label="Пошук товарів"
@@ -69,14 +68,12 @@ const Header = () => {
                         <Search size={20} aria-hidden="true" />
                     </button>
 
-                    {/* Cart */}
                     <Link
                         to="/cart"
                         aria-label="Кошик"
                         className="relative rounded-md p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
                     >
                         <ShoppingCart size={20} aria-hidden="true" />
-                        {/* Placeholder badge */}
                         <span
                             aria-label="3 товари у кошику"
                             className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white leading-none"
@@ -111,7 +108,6 @@ const Header = () => {
                 </div>
             </div>
 
-            {/* Search bar (expandable) */}
             {isSearchOpen && (
                 <div className="border-t border-gray-800 bg-gray-900 px-4 py-3">
                     <label htmlFor="site-search" className="sr-only">
