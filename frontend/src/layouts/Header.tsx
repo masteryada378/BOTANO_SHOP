@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ShoppingCart, User, Search, Menu, X, Zap } from "lucide-react";
+import { useAppContext } from "../context/AppContext";
 
 const NAV_LINKS = [
     { to: "/", label: "Головна" },
@@ -16,9 +17,25 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
         isActive ? "text-violet-400" : "text-gray-300"
     }`;
 
+const getCartLabelSuffix = (n: number): string => {
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return "товар";
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20))
+        return "товари";
+    return "товарів";
+};
+
 const Header = () => {
+    const { cart } = useAppContext();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+    const cartCount = cart.length;
+    const cartLabel =
+        cartCount === 0
+            ? "Кошик"
+            : `У кошику ${cartCount} ${getCartLabelSuffix(cartCount)}`;
 
     const toggleMenu = () => setIsMenuOpen((prev) => !prev);
     const closeMenu = () => setIsMenuOpen(false);
@@ -70,16 +87,18 @@ const Header = () => {
 
                     <Link
                         to="/cart"
-                        aria-label="Кошик"
+                        aria-label={cartLabel}
                         className="relative rounded-md p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
                     >
                         <ShoppingCart size={20} aria-hidden="true" />
-                        <span
-                            aria-label="3 товари у кошику"
-                            className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white leading-none"
-                        >
-                            3
-                        </span>
+                        {cartCount > 0 && (
+                            <span
+                                aria-hidden="true"
+                                className="absolute -top-0.5 -right-0.5 flex min-w-4 h-4 items-center justify-center rounded-full bg-violet-600 px-1 text-[10px] font-bold text-white leading-none"
+                            >
+                                {cartCount > 99 ? "99+" : cartCount}
+                            </span>
+                        )}
                     </Link>
 
                     <Link
@@ -130,7 +149,6 @@ const Header = () => {
                 </div>
             )}
 
-            {/* Mobile Menu */}
             {isMenuOpen && (
                 <nav
                     id="mobile-menu"
