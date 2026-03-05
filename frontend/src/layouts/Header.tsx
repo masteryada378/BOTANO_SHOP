@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ShoppingCart, User, Search, Menu, X, Zap } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
+import { useDebounce } from "../hooks/useDebounce";
 
 const NAV_LINKS = [
     { to: "/", label: "Головна" },
@@ -30,6 +31,16 @@ const Header = () => {
     const { cart } = useAppContext();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const debouncedQuery = useDebounce(searchQuery, 300);
+
+    useEffect(() => {
+        if (!isSearchOpen) setSearchQuery("");
+    }, [isSearchOpen]);
+
+    useEffect(() => {
+        console.log("Search:", debouncedQuery);
+    }, [debouncedQuery]);
 
     const cartCount = cart.length;
     const cartLabel =
@@ -143,6 +154,8 @@ const Header = () => {
                             type="search"
                             placeholder="Шукати комікси, фігурки, девайси..."
                             autoFocus
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full rounded-md bg-gray-800 py-2 pl-9 pr-4 text-sm text-gray-100 placeholder-gray-500 outline-none ring-1 ring-gray-700 focus:ring-violet-500 transition"
                         />
                     </div>

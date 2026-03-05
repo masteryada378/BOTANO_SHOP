@@ -3,10 +3,24 @@ import { pool } from "../database";
 
 const router = Router();
 
-// Отримати всі картки
-router.get("/", async (_req: Request, res: Response) => {
+// Отримати всі картки (або результати пошуку за ?q=)
+router.get("/", async (req: Request, res: Response) => {
     try {
-        const [rows] = await pool.query("SELECT * FROM cards ORDER BY id DESC");
+        const q =
+            typeof req.query.q === "string" ? req.query.q.trim() : "";
+
+        if (q === "") {
+            const [rows] = await pool.query(
+                "SELECT * FROM cards ORDER BY id DESC",
+            );
+            res.json(rows);
+            return;
+        }
+
+        const [rows] = await pool.query(
+            "SELECT * FROM cards WHERE title LIKE ? ORDER BY id DESC LIMIT 10",
+            [`%${q}%`],
+        );
         res.json(rows);
     } catch (err) {
         console.error("DB error:", err);

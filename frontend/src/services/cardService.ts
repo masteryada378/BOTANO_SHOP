@@ -19,6 +19,10 @@ const RESOURCE = "/cards";
 export const fetchCards = (): Promise<Card[]> =>
   apiGet<Card[]>(RESOURCE);
 
+/** Пошук карток за query (для live suggestions) */
+export const searchCards = (query: string): Promise<Card[]> =>
+  apiGet<Card[]>(`${RESOURCE}?q=${encodeURIComponent(query)}`);
+
 /**
  * Оновити картку.
  * Повертаємо void — відповідь бекенду нас не цікавить, лише успіх/помилка.
