@@ -1,6 +1,6 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
-import Header from "../layouts/Header";
+import { Header } from "../layouts/Header";
 import Footer from "./Footer";
 import { BottomNavigation } from "../layouts/BottomNavigation";
 import { useAppContext } from "../context/AppContext";

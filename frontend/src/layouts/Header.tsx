@@ -27,7 +27,7 @@ const getCartLabelSuffix = (n: number): string => {
     return "товарів";
 };
 
-const Header = () => {
+export const Header = () => {
     const { cart } = useAppContext();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -143,11 +143,11 @@ const Header = () => {
                     <label htmlFor="site-search" className="sr-only">
                         Пошук по сайту
                     </label>
-                    <div className="relative container mx-auto max-w-7xl">
+                    <div className="container mx-auto max-w-7xl flex items-center gap-2 rounded-md bg-gray-800 px-3 ring-1 ring-gray-700 focus-within:ring-violet-500 transition">
                         <Search
                             size={16}
                             aria-hidden="true"
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
+                            className="shrink-0 text-gray-500"
                         />
                         <input
                             id="site-search"
@@ -156,7 +156,7 @@ const Header = () => {
                             autoFocus
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full rounded-md bg-gray-800 py-2 pl-9 pr-4 text-sm text-gray-100 placeholder-gray-500 outline-none ring-1 ring-gray-700 focus:ring-violet-500 transition"
+                            className="w-full bg-transparent py-2 pr-4 text-sm text-gray-100 placeholder-gray-500 outline-none"
                         />
                     </div>
                 </div>
@@ -165,9 +165,7 @@ const Header = () => {
             {isMenuOpen && (
                 <nav
                     id="mobile-menu"
-                    role="dialog"
                     aria-label="Мобільне меню"
-                    aria-modal="true"
                     className="border-t border-gray-800 bg-gray-900 md:hidden"
                 >
                     <ul
@@ -199,4 +197,3 @@ const Header = () => {
     );
 };
 
-export default Header;

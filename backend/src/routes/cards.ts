@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import type { ResultSetHeader } from "mysql2";
 import { pool } from "../database";
 
 const router = Router();
@@ -33,13 +34,13 @@ router.post("/", async (req: Request, res: Response) => {
     const { title, price, image } = req.body;
 
     try {
-        const [result] = await pool.query(
+        const [result] = await pool.query<ResultSetHeader>(
             "INSERT INTO cards (title, price, image) VALUES (?, ?, ?)",
             [title, price, image],
         );
 
         const newCard = {
-            id: (result as any).insertId,
+            id: result.insertId,
             title,
             price,
             image,
@@ -58,12 +59,12 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
     const { title, price, image } = req.body;
 
     try {
-        const [result] = await pool.query(
+        const [result] = await pool.query<ResultSetHeader>(
             "UPDATE cards SET title = ?, price = ?, image = ? WHERE id = ?",
             [title, price, image, id],
         );
 
-        if ((result as any).affectedRows === 0) {
+        if (result.affectedRows === 0) {
             res.status(404).json({ error: "Card not found" });
             return;
         }
@@ -79,27 +80,24 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
 
 router.delete("/:id", async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
-    console.log("Received DELETE for ID:", id); // Логування отриманого ID
 
-    // Конвертація в число з перевіркою
     const cardId = parseInt(id, 10);
     if (isNaN(cardId)) {
-        console.error("Invalid ID format:", id);
         res.status(400).json({ error: "Invalid ID format" });
+        return;
     }
 
     try {
-        const [result] = await pool.query("DELETE FROM cards WHERE id = ?", [
-            cardId,
-        ]);
-        console.log("DB result:", result); // Логування результату запиту
+        const [result] = await pool.query<ResultSetHeader>(
+            "DELETE FROM cards WHERE id = ?",
+            [cardId],
+        );
 
-        if ((result as any).affectedRows === 0) {
-            console.log("No card found with ID:", cardId);
+        if (result.affectedRows === 0) {
             res.status(404).json({ error: "Card not found" });
+            return;
         }
 
-        console.log("Successfully deleted card ID:", cardId);
         res.status(204).send();
     } catch (err) {
         console.error("DB deletion error:", err);
