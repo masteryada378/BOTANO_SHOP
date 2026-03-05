@@ -2,7 +2,6 @@ import DeleteButton from "./DeleteButton";
 import { useState } from "react";
 import { EditProductModal } from "./EditProductModal";
 import { Card } from "../types/Card";
-// import { deleteCard } from "../services/cardService";
 
 interface ProductCardProps extends Card {
     onUpdate: () => void;
@@ -20,21 +19,23 @@ export default function ProductCard({
     const [isEditOpen, setIsEditOpen] = useState(false);
 
     return (
-        <div className="border p-4 rounded shadow bg-white flex flex-col items-center">
+        <article className="flex flex-col rounded-xl border border-gray-700 bg-gray-800 p-4 transition hover:border-violet-500/60 hover:shadow-lg hover:shadow-violet-900/20">
             {image && (
                 <img
                     src={image}
                     alt={title}
-                    className="h-40 object-cover mb-2"
+                    className="h-40 w-full rounded-lg object-cover mb-3"
                 />
             )}
-            <h3 className="text-xl font-semibold">{title}</h3>
-            <p className="text-gray-700">{price} грн</p>
+            <h3 className="text-base font-semibold text-gray-100">{title}</h3>
+            <p className="mt-1 font-mono text-sm font-bold text-violet-400">
+                {price} ₴
+            </p>
 
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-2 mt-auto pt-4">
                 <button
                     onClick={() => setIsEditOpen(true)}
-                    className="bg-yellow-500 text-white px-3 py-1 rounded text-sm"
+                    className="flex-1 rounded-md bg-gray-700 px-3 py-1.5 text-xs font-medium text-gray-200 hover:bg-gray-600 transition-colors"
                 >
                     Редагувати
                 </button>
@@ -47,6 +48,6 @@ export default function ProductCard({
                 onClose={() => setIsEditOpen(false)}
                 onUpdate={onUpdate}
             />
-        </div>
+        </article>
     );
 }

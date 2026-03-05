@@ -9,8 +9,11 @@ services:
             - ./backend:/app
         environment:
             - PORT=5005
+        # --- Task #4: Wait for DB to be healthy ---
         depends_on:
-            - db
+            db:
+                condition: service_healthy
+        # ------------------------------------------
         networks:
             - botano_network
     frontend:
@@ -39,6 +42,24 @@ services:
             - mysql_data:/var/lib/mysql
         networks:
             - botano_network
+        # --- Task #3: Healthcheck implementation ---
+        healthcheck:
+            test:
+                [
+                    "CMD",
+                    "mysqladmin",
+                    "ping",
+                    "-h",
+                    "localhost",
+                    "-u",
+                    "root",
+                    "-p$${MYSQL_ROOT_PASSWORD}",
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 20s
+        # -------------------------------------------
 volumes:
     mysql_data:
 networks:

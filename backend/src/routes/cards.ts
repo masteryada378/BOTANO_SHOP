@@ -3,10 +3,24 @@ import { pool } from "../database";
 
 const router = Router();
 
-// Отримати всі картки
-router.get("/", async (_req: Request, res: Response) => {
+// Отримати всі картки (або результати пошуку за ?q=)
+router.get("/", async (req: Request, res: Response) => {
     try {
-        const [rows] = await pool.query("SELECT * FROM cards ORDER BY id DESC");
+        const q =
+            typeof req.query.q === "string" ? req.query.q.trim() : "";
+
+        if (q === "") {
+            const [rows] = await pool.query(
+                "SELECT * FROM cards ORDER BY id DESC",
+            );
+            res.json(rows);
+            return;
+        }
+
+        const [rows] = await pool.query(
+            "SELECT * FROM cards WHERE title LIKE ? ORDER BY id DESC LIMIT 10",
+            [`%${q}%`],
+        );
         res.json(rows);
     } catch (err) {
         console.error("DB error:", err);
@@ -21,7 +35,7 @@ router.post("/", async (req: Request, res: Response) => {
     try {
         const [result] = await pool.query(
             "INSERT INTO cards (title, price, image) VALUES (?, ?, ?)",
-            [title, price, image]
+            [title, price, image],
         );
 
         const newCard = {
@@ -46,7 +60,7 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
     try {
         const [result] = await pool.query(
             "UPDATE cards SET title = ?, price = ?, image = ? WHERE id = ?",
-            [title, price, image, id]
+            [title, price, image, id],
         );
 
         if ((result as any).affectedRows === 0) {

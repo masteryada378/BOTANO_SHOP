@@ -21,7 +21,7 @@ const DeleteButton = ({ cardId, onDelete }: DeleteButtonProps) => {
     return (
         <button
             onClick={handleDelete}
-            className="bg-red-600 text-white px-3 py-1 rounded text-sm"
+            className="flex-1 rounded-md bg-red-900/60 px-3 py-1.5 text-xs font-medium text-red-300 hover:bg-red-700 hover:text-white transition-colors"
         >
             Видалити
         </button>
