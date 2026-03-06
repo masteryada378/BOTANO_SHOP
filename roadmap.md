@@ -195,7 +195,7 @@
 
 ## 5) MVP чеклист (must-have)
 
-- [ ] Layout: Header + BottomNav + Footer
+- [x] Layout: Header + BottomNav + Footer
 - [ ] Catalog з mobile filters + sorting
 - [ ] Product Detail
 - [ ] Cart
@@ -310,129 +310,154 @@
 
 ---
 
-## 17) Task #10 — Live search suggestions dropdown у Header
+## 17) Task #10 ✅ — Live search suggestions dropdown у Header
 
-**Назва:** Підключити випадаючий список підказок до пошуку в Header
+Виконано. Створено компонент `SearchSuggestions` з live-підказками від API, хук `useClickOutside` для закриття при кліку поза блоком, Escape закриває пошук, race condition оброблений, a11y (`role="listbox"`, `aria-live`). Блок B (Layout) та Етап 1 повністю закриті.
 
-**Бекграунд (Блок B — Layout, пункт 10 з бэклогу):**
+---
 
-Це **останній** крок Блоку B (Layout). Після нього Етап 1 "Глобальний Layout" буде повністю закритий за DoD:
-- ✅ Header: логотип, пошук з live suggestions, динамічний cart badge.
-- ✅ Mobile Bottom Navigation.
-- ✅ Footer.
-- ✅ Навігація веде на реальні роути або тимчасові заглушки.
+## 18) Task #11 ✅ — Створити сторінку Catalog (Блок C — перший крок)
+
+**Назва:** Базова сторінка каталогу з клієнтськими картками товарів
+
+**Бекграунд (Блок C — Catalog & Product, пункт 11 з бэклогу):**
+
+Це **перший** крок Блоку C і початок **Етапу 2 "Каталог і пошук"**. Ми переходимо від оболонки (Layout) до контенту — сторінки, де користувач переглядає товари для покупки.
+
+Нагадаю DoD Етапу 2:
+- Є сторінка каталогу з breadcrumbs, toolbar, sort/filter.
+- У мобільній версії фільтри відкриваються в drawer/modal.
+- Є пагінація або стабільний infinite scroll.
+- Пошук працює через API/дані і не блокує UI.
+
+У цьому таску закриваємо **лише** базову сторінку та grid з картками. Toolbar, фільтри, breadcrumbs, пагінація — це окремі таски (12–15).
 
 **Логіка (чому це робимо):**
 
-- У Task #9 ми побудували **фундамент**: controlled input, `useDebounce`, backend `?q=` endpoint, `searchCards()` service method. Але візуально нічого не змінилося — юзер вводить текст, а результатів не бачить. Це як мати двигун без колес.
-- Тепер потрібно закрити "останню милю" — **показати результати** пошуку в dropdown під інпутом. Це класичний UX-патерн "search suggestions" / "autocomplete", який є в кожному магазині (Amazon, Rozetka, тощо).
-- Виносимо dropdown в **окремий компонент** `SearchSuggestions`, а не ліпимо все в Header — SRP: Header керує станом пошуку, `SearchSuggestions` відповідає за відображення результатів.
+- Зараз на Home (`/`) товари відображаються через `ProductCard`, який має кнопки **"Редагувати"** і **"Видалити"** — це адмінський функціонал, не клієнтський. Каталог — це **сторінка для покупця**: він хоче бачити фото, назву, ціну і кнопку "Додати в кошик", а не CRUD-інструменти.
+- Тому потрібен **новий компонент** `CatalogCard` — "клієнтська" картка товару, орієнтована на конверсію (додати в кошик, перейти до деталей).
+- Сторінка Catalog (`/catalog`) стане основним місцем перегляду асортименту. Home залишається вітриною (hero, featured, категорії — це буде пізніше).
+- Роут `/catalog` вже визначений у `BottomNavigation`, але позначений як `enabled: false`. Після цього таску — він стане активним.
 
 **Scope (важливо):**
 
-- Робимо **тільки** dropdown з підказками під пошуковим інпутом.
-- **НЕ** робимо повноцінну сторінку результатів пошуку (це буде частиною каталогу).
-- **НЕ** робимо складну клавіатурну навігацію по списку (Arrow Up/Down) — це nice-to-have, але не зараз.
-- Сторінка `/product/:id` ще не існує, тому кліком по підказці поки **переходимо на `/product/${id}`** — покаже порожню сторінку, але роут буде валідним коли створимо ProductDetail у Блоці C.
+- Створити сторінку `Catalog` з grid товарів.
+- Створити компонент `CatalogCard` (клієнтський: фото, назва, ціна, "Додати в кошик").
+- Додати роут `/catalog` до роутера.
+- Увімкнути Catalog у `BottomNavigation`.
+- **НЕ** робимо toolbar, sorting, filters, breadcrumbs (Tasks #12, #13, #15).
+- **НЕ** робимо пагінацію/infinite scroll (окремий таск).
+- **НЕ** чіпаємо Home — вона залишається як є.
 
 **Що зробити (покроково):**
 
-### Крок 1 — Створити компонент `SearchSuggestions`
+### Крок 1 — Створити компонент `CatalogCard`
 
-- **Файл:** `frontend/src/components/SearchSuggestions.tsx` (create).
+- **Файл:** `frontend/src/components/CatalogCard.tsx` (create).
+- **Чому окремий від `ProductCard`?** `ProductCard` — адмінська картка з Edit/Delete. `CatalogCard` — покупницька картка з "Додати в кошик" і переходом до деталей. Різні відповідальності = різні компоненти (SRP). В майбутньому вони можуть мати спільний "base" компонент, але зараз простіше тримати їх окремо.
 - **Props (інтерфейс):**
     ```
-    interface SearchSuggestionsProps {
-      query: string;           // дебаунсований запит (debouncedQuery)
-      onSelect: () => void;    // колбек при виборі підказки (щоб Header закрив пошук)
+    interface CatalogCardProps {
+      id: number;
+      title: string;
+      price: number;
+      image?: string;
     }
     ```
-- **Внутрішній стан:**
-    - `results: Card[]` — масив знайдених товарів.
-    - `isLoading: boolean` — індикатор завантаження.
-- **Логіка (useEffect по `query`):**
-    1. Якщо `query.trim().length < 2` — скинути `results` у `[]` і **не** робити запит (нема сенсу шукати за одну букву). Поріг 2 символи — стандарт для autocomplete.
-    2. Якщо `query.length >= 2` — викликати `searchCards(query)` з `cardService.ts`.
-    3. Перед запитом встановити `isLoading = true`, після (success або error) — `isLoading = false`.
-    4. Результат записати в `results`.
-    5. **Race condition:** якщо юзер швидко змінює запит, попередній `searchCards()` може повернутися пізніше за новий. Щоб уникнути "мерехтіння" результатів, використай **AbortController** або прапорець `let ignore = false` в cleanup useEffect:
-        ```
-        useEffect(() => {
-          let cancelled = false;
-          // ... fetch ...
-          if (!cancelled) setResults(data);
-          return () => { cancelled = true; };
-        }, [query]);
-        ```
-- **Рендер:**
-    - Якщо `query.length < 2` — **нічого не рендерити** (`return null`).
-    - Якщо `isLoading` — показати текст "Шукаємо..." (або маленький спінер).
-    - Якщо `results.length === 0` і `!isLoading` — показати "Нічого не знайдено за запитом «{query}»".
-    - Якщо є результати — `<ul>` зі списком `<li>` для кожного товару.
-- **Кожен елемент підказки (`<li>`):**
-    - Обгорнути в `<Link to={`/product/${card.id}`}>`.
-    - Показати: мініатюру зображення (якщо `card.image` є, 40×40px, `object-cover`, `rounded`), назву товару (`card.title`), ціну (`card.price ₴`, шрифт `font-mono`, колір `text-violet-400`).
-    - При кліку — викликати `onSelect()` (щоб Header закрив dropdown і скинув query).
-    - Hover-стан: `bg-gray-700` або аналогічний, щоб було видно курсор.
+    Тобто це просто `Card`, але краще типізувати пропси явно — не прив'язуємо UI до DTO.
+- **Структура картки (зверху вниз):**
+    1. **Посилання-обгортка:** вся картка (або її верхня частина — зображення + назва) обгорнута в `<Link to={`/product/${id}`}>`. Клік по картці = перехід на деталі товару. Роут `/product/:id` ще не існує, але буде в Task #14.
+    2. **Зображення:** якщо `image` є — `<img>` з `object-cover`, `rounded-t-xl`, висота ~`h-48` (адаптивно). Якщо `image` відсутній — placeholder: сірий блок з іконкою або текстом "No image". Використай іконку `ImageOff` з `lucide-react` (або аналогічну).
+    3. **Тіло картки (padding):**
+        - **Назва:** `<h3>`, `text-sm font-semibold text-gray-100`, `line-clamp-2` (обрізати довгі назви до 2 рядків).
+        - **Ціна:** `font-mono font-bold text-violet-400` — гік-стиль шрифтом. Формат: `{price} ₴`.
+    4. **Кнопка "Додати в кошик":**
+        - Зовнішня від `<Link>` (щоб клік по кнопці не переходив на сторінку деталей).
+        - Текст: "В кошик" або іконка `ShoppingCart` з `lucide-react` + короткий текст.
+        - По кліку: `addToCart(id)` з `useAppContext()`.
+        - Стилі: `bg-violet-600 hover:bg-violet-500`, `text-white`, `rounded-lg`, `w-full`, `py-2`.
+        - `aria-label={`Додати "${title}" в кошик`}`.
 - **Стилізація контейнера:**
-    - Список має з'являтися **під** пошуковим інпутом.
-    - Фон: `bg-gray-800`, рамка: `border border-gray-700`, `rounded-lg`, `shadow-xl`.
-    - Максимальна висота: `max-h-80` з `overflow-y-auto` (щоб на маленьких екранах не з'їдав весь простір).
-    - Компонент має бути всередині потоку документа або позиціонуватись відносно обгортки пошуку.
+    - `rounded-xl`, `border border-gray-700`, `bg-gray-800`.
+    - Hover: `hover:border-violet-500/60`, `hover:shadow-lg hover:shadow-violet-900/20` (як у `ProductCard`, для консистентності).
+    - `flex flex-col` — зображення зверху, контент знизу, кнопка приклеєна до низу (`mt-auto`).
+    - `overflow-hidden` — щоб `rounded` працював з зображенням.
+    - Transition: `transition-all duration-200` для плавності.
 
-### Крок 2 — Інтегрувати `SearchSuggestions` в Header
+### Крок 2 — Створити сторінку `Catalog`
 
-- **Файл:** `frontend/src/layouts/Header.tsx` (update).
-- **Де розмістити:** всередині блоку `{isSearchOpen && (...)}`, **після** `<div>` з інпутом, але всередині того ж контейнера `border-t border-gray-800`.
-- **Передати пропси:**
-    - `query={debouncedQuery}`
-    - `onSelect={() => setIsSearchOpen(false)}` — при виборі підказки закриваємо пошук.
-- **Видалити** тимчасовий `console.log("Search:", debouncedQuery)` з Task #9 — він більше не потрібний, тепер є реальний UI.
-- **Видалити** `useEffect`, що логував `debouncedQuery` — він існував тільки для дебагу.
-- **Import:** додати `import { SearchSuggestions } from "../components/SearchSuggestions"`.
+- **Файл:** `frontend/src/pages/Catalog.tsx` (create).
+- **Структура:**
+    1. **Заголовок секції:**
+        - `<section aria-labelledby="catalog-heading">` (семантична обгортка).
+        - `<h1 id="catalog-heading">` — "Каталог" (або "Каталог товарів").
+        - Підзаголовок `<p>` — "Обирай серед усіх товарів" (або подібний).
+    2. **Grid товарів:**
+        - Завантаження через `fetchCards()` з `cardService.ts` (як на Home, але без CRUD).
+        - Grid: `grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4`.
+        - **Чому `grid-cols-2` (mobile)?** Для каталогу магазину 2 колонки на мобілці — стандарт (Rozetka, Amazon). Дає більше товарів на екрані, ніж 1 колонка. Home може залишатися з 1 колонкою (там більший фокус на Hero).
+        - Кожен товар рендериться через `<CatalogCard {...card} />`.
+    3. **Loading state:**
+        - Скелетони: `CatalogCardSkeleton` — прямокутник, який імітує форму `CatalogCard`.
+        - Кількість: 8 штук (2 ряди по 4 = заповнює десктопний grid).
+        - Анімація: `animate-pulse`.
+    4. **Empty state:**
+        - Якщо `products.length === 0` і `!isLoading` — показати повідомлення: "Товарів поки немає".
+        - Можна додати іконку `PackageOpen` з `lucide-react`.
+    5. **Error state:**
+        - Якщо `fetchCards()` падає — зберегти помилку в стані (`error: string | null`).
+        - Показати: "Не вдалося завантажити товари. Спробуйте пізніше." з кнопкою "Спробувати знову" (яка викличе `loadProducts()` повторно).
+- **Іменований експорт:** `export const CatalogPage = () => { ... }` (без `export default` — відповідно до правил проєкту).
 
-### Крок 3 — Закриття dropdown при кліку поза ним
+### Крок 3 — Додати роут `/catalog` у роутер
 
-- **Поведінка:** якщо юзер натискає кудись поза пошуковим блоком (інпут + dropdown), пошук має закритися.
-- **Рекомендований підхід:** створити невеликий хук `useClickOutside(ref, callback)` у `frontend/src/hooks/useClickOutside.ts`, або реалізувати логіку прямо в Header через `useRef` + `useEffect` з `mousedown` listener.
-- **Хук `useClickOutside`:**
-    - **Файл:** `frontend/src/hooks/useClickOutside.ts` (create).
-    - **Сигнатура:** `useClickOutside(ref: RefObject<HTMLElement | null>, callback: () => void): void`
-    - Всередині: `useEffect` додає `document.addEventListener("mousedown", handler)`, де handler перевіряє `ref.current?.contains(event.target as Node)`. Якщо клік поза — `callback()`.
-    - Cleanup: `removeEventListener` в return.
-- **В Header:**
-    - Обгорни весь блок пошуку (інпут + dropdown) в `<div ref={searchRef}>`.
-    - Підключи: `useClickOutside(searchRef, () => setIsSearchOpen(false))`.
-- **Escape:** додай обробник `onKeyDown` на інпут: якщо `e.key === "Escape"` — `setIsSearchOpen(false)`.
+- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
+- Додай новий child route:
+    ```
+    {
+      path: "catalog",
+      element: <CatalogPage />,
+    }
+    ```
+- **Import:** `import { CatalogPage } from "../pages/Catalog"`.
+- **Чому `path: "catalog"` а не `path: "/catalog"`?** У react-router v6 дочірні роути відносні до батьківського. Батько має `path: "/"`, тому `"catalog"` резолвиться в `/catalog`. Але `/catalog` теж працює — обирай стиль, який вже використовується в проєкті (зараз у тебе `path: "/"` для Home).
 
-### Крок 4 — Доступність (a11y)
+### Крок 4 — Увімкнути Catalog у `BottomNavigation`
 
-- `<ul>` зі списком підказок: додай `role="listbox"` і `aria-label="Результати пошуку"`.
-- Кожен `<li>`: `role="option"`.
-- Інпут пошуку: додай `aria-autocomplete="list"` і `aria-controls="search-suggestions"`.
-- `<ul>` має мати `id="search-suggestions"` (щоб інпут міг на нього посилатися).
-- Статусне повідомлення "Знайдено X результатів" або "Нічого не знайдено" — обгорни в `<div aria-live="polite">` щоб скрінрідер озвучив зміну.
+- **Файл:** `frontend/src/layouts/BottomNavigation.tsx` (update).
+- Знайди елемент з `to: "/catalog"` в масиві `bottomNavItems`.
+- Зміни `enabled: false` на `enabled: true`.
+- Тепер Catalog буде клікабельним у мобільній нижній панелі.
+
+### Крок 5 — Навігація з Header (Desktop)
+
+- **Файл:** `frontend/src/layouts/Header.tsx` — перевір, що у `NAV_LINKS` вже є `{ to: "/catalog", label: "Каталог" }`.
+- Якщо є — нічого додатково не потрібно, NavLink вже рендериться.
+- Якщо немає — додай.
+- Зараз у `NAV_LINKS` є: `/`, `/catalog`, `/comics`, `/figures`, `/devices`, `/contacts` — тобто `/catalog` **вже є**. Все добре, десктопна навігація працюватиме з коробки.
 
 **Файли для створення/змін:**
 
 | Файл | Дія |
 |------|-----|
-| `frontend/src/components/SearchSuggestions.tsx` | **create** |
-| `frontend/src/hooks/useClickOutside.ts` | **create** |
-| `frontend/src/layouts/Header.tsx` | update |
+| `frontend/src/components/CatalogCard.tsx` | **create** |
+| `frontend/src/pages/Catalog.tsx` | **create** |
+| `frontend/src/routes/AppRoutes.tsx` | update |
+| `frontend/src/layouts/BottomNavigation.tsx` | update |
 
 **Критерії приймання:**
 
-- [ ] Компонент `SearchSuggestions` існує, приймає `query` і `onSelect` пропси.
-- [ ] При введенні >= 2 символів — з'являється dropdown з результатами від API.
-- [ ] Показується стан "Шукаємо..." під час завантаження.
-- [ ] Показується "Нічого не знайдено" якщо API повернув порожній масив.
-- [ ] Кожна підказка містить: зображення (якщо є), назву, ціну.
-- [ ] Клік по підказці закриває dropdown і переходить на `/product/${id}`.
-- [ ] Клік поза пошуковим блоком закриває пошук.
-- [ ] Натискання Escape закриває пошук.
-- [ ] `console.log("Search:", debouncedQuery)` видалено з Header.
-- [ ] Race condition оброблений (cancelled / ignore прапорець).
-- [ ] Базова a11y: `role="listbox"`, `aria-live`, `aria-autocomplete`.
+- [ ] Сторінка `/catalog` існує і відображає grid товарів від API.
+- [ ] `CatalogCard` має: зображення (або placeholder), назву (line-clamp-2), ціну (`font-mono`), кнопку "В кошик".
+- [ ] Кнопка "В кошик" додає товар через `addToCart()` з `AppContext`.
+- [ ] Клік по картці (зображення/назва) переходить на `/product/${id}`.
+- [ ] Клік по кнопці "В кошик" **НЕ** переходить на сторінку деталей (event propagation оброблений).
+- [ ] Grid: 2 колонки (mobile), 3 (tablet), 4 (desktop).
+- [ ] Loading: показуються скелетони `CatalogCardSkeleton` (animate-pulse).
+- [ ] Empty: повідомлення "Товарів поки немає" якщо API повернув `[]`.
+- [ ] Error: повідомлення + кнопка "Спробувати знову".
+- [ ] Catalog увімкнений в `BottomNavigation` (`enabled: true`).
+- [ ] Роут `/catalog` додано в `AppRoutes.tsx`.
+- [ ] Іменований експорт (`export const CatalogPage`).
 - [ ] Немає `any`, TypeScript strict.
-- [ ] Мобільна версія: dropdown не виходить за межі екрану, скролиться при великій кількості результатів.
+- [ ] Mobile-first: 2 колонки на малих екранах, картки не розтягуються.
