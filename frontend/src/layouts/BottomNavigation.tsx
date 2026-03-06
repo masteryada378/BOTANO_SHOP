@@ -35,7 +35,7 @@ const bottomNavItems: BottomNavItem[] = [
         label: "Catalog",
         ariaLabel: "Go to catalog page",
         icon: <List />,
-        enabled: false,
+        enabled: true,
     },
     {
         to: "/cart",

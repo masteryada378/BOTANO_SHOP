@@ -195,7 +195,7 @@
 
 ## 5) MVP чеклист (must-have)
 
-- [ ] Layout: Header + BottomNav + Footer
+- [x] Layout: Header + BottomNav + Footer
 - [ ] Catalog з mobile filters + sorting
 - [ ] Product Detail
 - [ ] Cart
@@ -304,92 +304,160 @@
 
 ---
 
-## 16) Task #9 — Фундамент live-search: стан, debounce hook, backend endpoint
+## 16) Task #9 ✅ — Фундамент live-search: стан, debounce hook, backend endpoint
 
-**Назва:** Підготовка інфраструктури для живого пошуку товарів
+Виконано. Створено хук `useDebounce<T>`, підключено controlled input у Header з debounce (300ms), розширено `GET /cards?q=` на бекенді (параметризований SQL, LIMIT 10), додано `searchCards()` у `cardService.ts`.
 
-**Бекграунд (Блок B — Layout, пункти 9-10 з бэклогу):**
+---
 
-Це передостанній крок Блоку B. Після нього залишиться лише Task #10 (dropdown з підказками), і Layout буде повністю закритий за DoD Етапу 1.
+## 17) Task #10 ✅ — Live search suggestions dropdown у Header
+
+Виконано. Створено компонент `SearchSuggestions` з live-підказками від API, хук `useClickOutside` для закриття при кліку поза блоком, Escape закриває пошук, race condition оброблений, a11y (`role="listbox"`, `aria-live`). Блок B (Layout) та Етап 1 повністю закриті.
+
+---
+
+## 18) Task #11 ✅ — Створити сторінку Catalog (Блок C — перший крок)
+
+**Назва:** Базова сторінка каталогу з клієнтськими картками товарів
+
+**Бекграунд (Блок C — Catalog & Product, пункт 11 з бэклогу):**
+
+Це **перший** крок Блоку C і початок **Етапу 2 "Каталог і пошук"**. Ми переходимо від оболонки (Layout) до контенту — сторінки, де користувач переглядає товари для покупки.
+
+Нагадаю DoD Етапу 2:
+- Є сторінка каталогу з breadcrumbs, toolbar, sort/filter.
+- У мобільній версії фільтри відкриваються в drawer/modal.
+- Є пагінація або стабільний infinite scroll.
+- Пошук працює через API/дані і не блокує UI.
+
+У цьому таску закриваємо **лише** базову сторінку та grid з картками. Toolbar, фільтри, breadcrumbs, пагінація — це окремі таски (12–15).
 
 **Логіка (чому це робимо):**
 
-- У Header вже є пошуковий інпут, але він **декоративний** — нікуди не зберігає значення, нічого не шукає. Це як кнопка ліфта, яка не підключена до двигуна.
-- Перш ніж робити dropdown з підказками (Task #10), потрібно закласти **фундамент**: стан пошуку, debounce (щоб не DDoS-ити бекенд при кожному натисканні клавіші), і ендпоінт, який вміє фільтрувати товари.
-- Розділяємо на два таски, бо "інфраструктура пошуку" та "UI dropdown" — різні відповідальності (SRP). Так легше тестувати і рев'юїти.
+- Зараз на Home (`/`) товари відображаються через `ProductCard`, який має кнопки **"Редагувати"** і **"Видалити"** — це адмінський функціонал, не клієнтський. Каталог — це **сторінка для покупця**: він хоче бачити фото, назву, ціну і кнопку "Додати в кошик", а не CRUD-інструменти.
+- Тому потрібен **новий компонент** `CatalogCard` — "клієнтська" картка товару, орієнтована на конверсію (додати в кошик, перейти до деталей).
+- Сторінка Catalog (`/catalog`) стане основним місцем перегляду асортименту. Home залишається вітриною (hero, featured, категорії — це буде пізніше).
+- Роут `/catalog` вже визначений у `BottomNavigation`, але позначений як `enabled: false`. Після цього таску — він стане активним.
 
 **Scope (важливо):**
 
-- В цьому таску **НЕ** робимо dropdown з підказками (це Task #10).
-- **НЕ** міняємо вигляд Header (візуально все залишається як є).
-- Робимо тільки: хук `useDebounce`, пошуковий стан у Header, backend endpoint з `?q=`, frontend service method.
+- Створити сторінку `Catalog` з grid товарів.
+- Створити компонент `CatalogCard` (клієнтський: фото, назва, ціна, "Додати в кошик").
+- Додати роут `/catalog` до роутера.
+- Увімкнути Catalog у `BottomNavigation`.
+- **НЕ** робимо toolbar, sorting, filters, breadcrumbs (Tasks #12, #13, #15).
+- **НЕ** робимо пагінацію/infinite scroll (окремий таск).
+- **НЕ** чіпаємо Home — вона залишається як є.
 
 **Що зробити (покроково):**
 
-### Крок 1 — Створити кастомний хук `useDebounce`
+### Крок 1 — Створити компонент `CatalogCard`
 
-- **Файл:** `frontend/src/hooks/useDebounce.ts` (створити папку `hooks/` якщо немає).
-- **Сигнатура:** `useDebounce<T>(value: T, delayMs: number): T`
-- **Поведінка:**
-    - Приймає будь-яке значення та затримку в мілісекундах.
-    - Повертає "відкладену" версію значення, яка оновлюється лише через `delayMs` після останньої зміни вхідного `value`.
-    - Використовує `useEffect` + `setTimeout` + `clearTimeout` (cleanup).
-- **Чому generic `<T>`, а не `string`:** хук універсальний — завтра можна дебаунсити числовий фільтр ціни або інший тип.
-- **Рекомендований delay для виклику:** 300ms (стандарт для пошукових підказок — досить швидко для UX, досить повільно щоб не спамити API).
-
-### Крок 2 — Додати стан пошуку в Header
-
-- **Файл:** `frontend/src/layouts/Header.tsx` (update).
-- Додай стан: `const [searchQuery, setSearchQuery] = useState("")`
-- Додай дебаунсоване значення: `const debouncedQuery = useDebounce(searchQuery, 300)`
-- Підключи `searchQuery` до існуючого `<input>`:
-    - `value={searchQuery}`
-    - `onChange={(e) => setSearchQuery(e.target.value)}`
-- **Важливо:** при закритті пошуку (`isSearchOpen` стає `false`) — очищай `searchQuery` до `""`, щоб при повторному відкритті інпут був чистим.
-- Тимчасово `console.log("Search:", debouncedQuery)` для перевірки — прибереш у Task #10.
-- `debouncedQuery` поки нікуди не передаємо — стане тригером для API-запиту в наступному таску.
-
-### Крок 3 — Розширити backend endpoint для пошуку
-
-- **Файл:** `backend/src/routes/cards.ts` (update).
-- Розшир існуючий `GET /cards`, додавши підтримку query-параметра `?q=`:
-    - Якщо `req.query.q` відсутній або порожній — повертай ВСІ картки (як зараз, без регресії).
-    - Якщо `req.query.q` заданий — `SELECT * FROM cards WHERE title LIKE ? ORDER BY id DESC LIMIT 10` з параметром `%${q}%`.
-- **Безпека:** ОБОВ'ЯЗКОВО використовуй параметризований запит (placeholder `?`), **НЕ** конкатенуй рядок у SQL (SQL injection).
-- **Типізація:** `req.query.q` це `string | QueryString... | undefined`. Приведи явно:
-    ```typescript
-    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+- **Файл:** `frontend/src/components/CatalogCard.tsx` (create).
+- **Чому окремий від `ProductCard`?** `ProductCard` — адмінська картка з Edit/Delete. `CatalogCard` — покупницька картка з "Додати в кошик" і переходом до деталей. Різні відповідальності = різні компоненти (SRP). В майбутньому вони можуть мати спільний "base" компонент, але зараз простіше тримати їх окремо.
+- **Props (інтерфейс):**
     ```
-- **Ліміт:** `LIMIT 10` для пошукового запиту — для підказок не потрібно багато результатів.
-- Для повного списку (без `?q`) лімітів не додаємо (поки що).
-
-### Крок 4 — Додати frontend service method для пошуку
-
-- **Файл:** `frontend/src/services/cardService.ts` (update).
-- Додай функцію:
-    ```typescript
-    export const searchCards = (query: string): Promise<Card[]> =>
-      apiGet<Card[]>(`${RESOURCE}?q=${encodeURIComponent(query)}`);
+    interface CatalogCardProps {
+      id: number;
+      title: string;
+      price: number;
+      image?: string;
+    }
     ```
-- **Чому `encodeURIComponent`:** якщо юзер введе `&` або `#` у пошук, URL не зламається.
-- Цю функцію поки **ніхто не викликає** — вона знадобиться в Task #10 коли підключимо dropdown.
+    Тобто це просто `Card`, але краще типізувати пропси явно — не прив'язуємо UI до DTO.
+- **Структура картки (зверху вниз):**
+    1. **Посилання-обгортка:** вся картка (або її верхня частина — зображення + назва) обгорнута в `<Link to={`/product/${id}`}>`. Клік по картці = перехід на деталі товару. Роут `/product/:id` ще не існує, але буде в Task #14.
+    2. **Зображення:** якщо `image` є — `<img>` з `object-cover`, `rounded-t-xl`, висота ~`h-48` (адаптивно). Якщо `image` відсутній — placeholder: сірий блок з іконкою або текстом "No image". Використай іконку `ImageOff` з `lucide-react` (або аналогічну).
+    3. **Тіло картки (padding):**
+        - **Назва:** `<h3>`, `text-sm font-semibold text-gray-100`, `line-clamp-2` (обрізати довгі назви до 2 рядків).
+        - **Ціна:** `font-mono font-bold text-violet-400` — гік-стиль шрифтом. Формат: `{price} ₴`.
+    4. **Кнопка "Додати в кошик":**
+        - Зовнішня від `<Link>` (щоб клік по кнопці не переходив на сторінку деталей).
+        - Текст: "В кошик" або іконка `ShoppingCart` з `lucide-react` + короткий текст.
+        - По кліку: `addToCart(id)` з `useAppContext()`.
+        - Стилі: `bg-violet-600 hover:bg-violet-500`, `text-white`, `rounded-lg`, `w-full`, `py-2`.
+        - `aria-label={`Додати "${title}" в кошик`}`.
+- **Стилізація контейнера:**
+    - `rounded-xl`, `border border-gray-700`, `bg-gray-800`.
+    - Hover: `hover:border-violet-500/60`, `hover:shadow-lg hover:shadow-violet-900/20` (як у `ProductCard`, для консистентності).
+    - `flex flex-col` — зображення зверху, контент знизу, кнопка приклеєна до низу (`mt-auto`).
+    - `overflow-hidden` — щоб `rounded` працював з зображенням.
+    - Transition: `transition-all duration-200` для плавності.
+
+### Крок 2 — Створити сторінку `Catalog`
+
+- **Файл:** `frontend/src/pages/Catalog.tsx` (create).
+- **Структура:**
+    1. **Заголовок секції:**
+        - `<section aria-labelledby="catalog-heading">` (семантична обгортка).
+        - `<h1 id="catalog-heading">` — "Каталог" (або "Каталог товарів").
+        - Підзаголовок `<p>` — "Обирай серед усіх товарів" (або подібний).
+    2. **Grid товарів:**
+        - Завантаження через `fetchCards()` з `cardService.ts` (як на Home, але без CRUD).
+        - Grid: `grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4`.
+        - **Чому `grid-cols-2` (mobile)?** Для каталогу магазину 2 колонки на мобілці — стандарт (Rozetka, Amazon). Дає більше товарів на екрані, ніж 1 колонка. Home може залишатися з 1 колонкою (там більший фокус на Hero).
+        - Кожен товар рендериться через `<CatalogCard {...card} />`.
+    3. **Loading state:**
+        - Скелетони: `CatalogCardSkeleton` — прямокутник, який імітує форму `CatalogCard`.
+        - Кількість: 8 штук (2 ряди по 4 = заповнює десктопний grid).
+        - Анімація: `animate-pulse`.
+    4. **Empty state:**
+        - Якщо `products.length === 0` і `!isLoading` — показати повідомлення: "Товарів поки немає".
+        - Можна додати іконку `PackageOpen` з `lucide-react`.
+    5. **Error state:**
+        - Якщо `fetchCards()` падає — зберегти помилку в стані (`error: string | null`).
+        - Показати: "Не вдалося завантажити товари. Спробуйте пізніше." з кнопкою "Спробувати знову" (яка викличе `loadProducts()` повторно).
+- **Іменований експорт:** `export const CatalogPage = () => { ... }` (без `export default` — відповідно до правил проєкту).
+
+### Крок 3 — Додати роут `/catalog` у роутер
+
+- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
+- Додай новий child route:
+    ```
+    {
+      path: "catalog",
+      element: <CatalogPage />,
+    }
+    ```
+- **Import:** `import { CatalogPage } from "../pages/Catalog"`.
+- **Чому `path: "catalog"` а не `path: "/catalog"`?** У react-router v6 дочірні роути відносні до батьківського. Батько має `path: "/"`, тому `"catalog"` резолвиться в `/catalog`. Але `/catalog` теж працює — обирай стиль, який вже використовується в проєкті (зараз у тебе `path: "/"` для Home).
+
+### Крок 4 — Увімкнути Catalog у `BottomNavigation`
+
+- **Файл:** `frontend/src/layouts/BottomNavigation.tsx` (update).
+- Знайди елемент з `to: "/catalog"` в масиві `bottomNavItems`.
+- Зміни `enabled: false` на `enabled: true`.
+- Тепер Catalog буде клікабельним у мобільній нижній панелі.
+
+### Крок 5 — Навігація з Header (Desktop)
+
+- **Файл:** `frontend/src/layouts/Header.tsx` — перевір, що у `NAV_LINKS` вже є `{ to: "/catalog", label: "Каталог" }`.
+- Якщо є — нічого додатково не потрібно, NavLink вже рендериться.
+- Якщо немає — додай.
+- Зараз у `NAV_LINKS` є: `/`, `/catalog`, `/comics`, `/figures`, `/devices`, `/contacts` — тобто `/catalog` **вже є**. Все добре, десктопна навігація працюватиме з коробки.
 
 **Файли для створення/змін:**
 
 | Файл | Дія |
 |------|-----|
-| `frontend/src/hooks/useDebounce.ts` | **create** |
-| `frontend/src/layouts/Header.tsx` | update |
-| `backend/src/routes/cards.ts` | update |
-| `frontend/src/services/cardService.ts` | update |
+| `frontend/src/components/CatalogCard.tsx` | **create** |
+| `frontend/src/pages/Catalog.tsx` | **create** |
+| `frontend/src/routes/AppRoutes.tsx` | update |
+| `frontend/src/layouts/BottomNavigation.tsx` | update |
 
 **Критерії приймання:**
 
-- [ ] Хук `useDebounce` існує, типізований generic `<T>`, без `any`.
-- [ ] Header `<input>` є controlled (`value` + `onChange`), debounce працює (видно в `console.log` при введенні тексту з затримкою ~300ms).
-- [ ] При закритті пошуку (`isSearchOpen` стає `false`) стан скидається до `""`.
-- [ ] `GET /cards?q=marvel` повертає лише товари з "marvel" у назві (case-insensitive через SQL `LIKE`).
-- [ ] `GET /cards` без `?q` працює як раніше (без регресії).
-- [ ] Пошуковий SQL використовує `?` placeholder (без конкатенації рядків).
-- [ ] `searchCards()` існує в `cardService.ts`, правильно кодує query через `encodeURIComponent`.
+- [ ] Сторінка `/catalog` існує і відображає grid товарів від API.
+- [ ] `CatalogCard` має: зображення (або placeholder), назву (line-clamp-2), ціну (`font-mono`), кнопку "В кошик".
+- [ ] Кнопка "В кошик" додає товар через `addToCart()` з `AppContext`.
+- [ ] Клік по картці (зображення/назва) переходить на `/product/${id}`.
+- [ ] Клік по кнопці "В кошик" **НЕ** переходить на сторінку деталей (event propagation оброблений).
+- [ ] Grid: 2 колонки (mobile), 3 (tablet), 4 (desktop).
+- [ ] Loading: показуються скелетони `CatalogCardSkeleton` (animate-pulse).
+- [ ] Empty: повідомлення "Товарів поки немає" якщо API повернув `[]`.
+- [ ] Error: повідомлення + кнопка "Спробувати знову".
+- [ ] Catalog увімкнений в `BottomNavigation` (`enabled: true`).
+- [ ] Роут `/catalog` додано в `AppRoutes.tsx`.
+- [ ] Іменований експорт (`export const CatalogPage`).
 - [ ] Немає `any`, TypeScript strict.
+- [ ] Mobile-first: 2 колонки на малих екранах, картки не розтягуються.

@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ShoppingCart, User, Search, Menu, X, Zap } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { useDebounce } from "../hooks/useDebounce";
+import { useClickOutside } from "../hooks/useClickOutside";
+import { SearchSuggestions } from "../components/SearchSuggestions";
 
 const NAV_LINKS = [
     { to: "/", label: "Головна" },
@@ -27,20 +29,29 @@ const getCartLabelSuffix = (n: number): string => {
     return "товарів";
 };
 
-const Header = () => {
+export const Header = () => {
     const { cart } = useAppContext();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedQuery = useDebounce(searchQuery, 300);
 
-    useEffect(() => {
-        if (!isSearchOpen) setSearchQuery("");
-    }, [isSearchOpen]);
+    // Реф на контейнер пошуку (інпут + dropdown разом).
+    // useClickOutside отримає цей реф і закриє пошук при кліку поза ним.
+    const searchContainerRef = useRef<HTMLDivElement>(null);
+
+    // useCallback стабілізує посилання на функцію між рендерами.
+    // Без useCallback useClickOutside отримував би нову функцію при кожному рендері,
+    // що призводило б до постійного перепідписання document listener.
+    const closeSearch = useCallback(() => setIsSearchOpen(false), []);
+
+    // Підключаємо хук: при mousedown поза searchContainerRef → closeSearch()
+    useClickOutside(searchContainerRef, closeSearch);
 
     useEffect(() => {
-        console.log("Search:", debouncedQuery);
-    }, [debouncedQuery]);
+        // Скидаємо текст запиту коли пошук закрито (напр. Escape або клік поза)
+        if (!isSearchOpen) setSearchQuery("");
+    }, [isSearchOpen]);
 
     const cartCount = cart.length;
     const cartLabel =
@@ -143,20 +154,53 @@ const Header = () => {
                     <label htmlFor="site-search" className="sr-only">
                         Пошук по сайту
                     </label>
-                    <div className="relative container mx-auto max-w-7xl">
-                        <Search
-                            size={16}
-                            aria-hidden="true"
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
-                        />
-                        <input
-                            id="site-search"
-                            type="search"
-                            placeholder="Шукати комікси, фігурки, девайси..."
-                            autoFocus
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full rounded-md bg-gray-800 py-2 pl-9 pr-4 text-sm text-gray-100 placeholder-gray-500 outline-none ring-1 ring-gray-700 focus:ring-violet-500 transition"
+                    {/*
+                     * searchContainerRef навішений тут — на спільний контейнер
+                     * інпуту і dropdown. useClickOutside вважає клік "зовнішнім"
+                     * тільки якщо він поза цим div, тобто кліки по інпуту і
+                     * підказках не закривають пошук.
+                     */}
+                    <div
+                        ref={searchContainerRef}
+                        className="container mx-auto max-w-7xl"
+                    >
+                        {/* Рядок пошуку */}
+                        <div className="flex items-center gap-2 rounded-md bg-gray-800 px-3 ring-1 ring-gray-700 focus-within:ring-violet-500 transition">
+                            <Search
+                                size={16}
+                                aria-hidden="true"
+                                className="shrink-0 text-gray-500"
+                            />
+                            <input
+                                id="site-search"
+                                type="search"
+                                placeholder="Шукати комікси, фігурки, девайси..."
+                                autoFocus
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                // Escape — найочікуваніша клавіша для закриття пошуку
+                                // (стандарт UX: Google, Rozetka, Amazon).
+                                // Закриваємо через closeSearch(), щоб також скинути query
+                                // через useEffect [isSearchOpen].
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") closeSearch();
+                                }}
+                                // aria-autocomplete="list" + aria-controls зв'язують інпут
+                                // з dropdown для скрінрідерів (ARIA 1.2 combobox pattern)
+                                aria-autocomplete="list"
+                                aria-controls="search-suggestions"
+                                className="w-full bg-transparent py-2 pr-4 text-sm text-gray-100 placeholder-gray-500 outline-none"
+                            />
+                        </div>
+
+                        {/*
+                         * SearchSuggestions з'являється під інпутом як частина потоку.
+                         * query — дебаунсований рядок (не реагує на кожну клавішу).
+                         * onSelect — при виборі підказки закриваємо пошук.
+                         */}
+                        <SearchSuggestions
+                            query={debouncedQuery}
+                            onSelect={closeSearch}
                         />
                     </div>
                 </div>
@@ -165,9 +209,7 @@ const Header = () => {
             {isMenuOpen && (
                 <nav
                     id="mobile-menu"
-                    role="dialog"
                     aria-label="Мобільне меню"
-                    aria-modal="true"
                     className="border-t border-gray-800 bg-gray-900 md:hidden"
                 >
                     <ul
@@ -198,5 +240,3 @@ const Header = () => {
         </header>
     );
 };
-
-export default Header;
