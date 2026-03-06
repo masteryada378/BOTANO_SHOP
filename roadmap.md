@@ -304,92 +304,135 @@
 
 ---
 
-## 16) Task #9 — Фундамент live-search: стан, debounce hook, backend endpoint
+## 16) Task #9 ✅ — Фундамент live-search: стан, debounce hook, backend endpoint
 
-**Назва:** Підготовка інфраструктури для живого пошуку товарів
+Виконано. Створено хук `useDebounce<T>`, підключено controlled input у Header з debounce (300ms), розширено `GET /cards?q=` на бекенді (параметризований SQL, LIMIT 10), додано `searchCards()` у `cardService.ts`.
 
-**Бекграунд (Блок B — Layout, пункти 9-10 з бэклогу):**
+---
 
-Це передостанній крок Блоку B. Після нього залишиться лише Task #10 (dropdown з підказками), і Layout буде повністю закритий за DoD Етапу 1.
+## 17) Task #10 — Live search suggestions dropdown у Header
+
+**Назва:** Підключити випадаючий список підказок до пошуку в Header
+
+**Бекграунд (Блок B — Layout, пункт 10 з бэклогу):**
+
+Це **останній** крок Блоку B (Layout). Після нього Етап 1 "Глобальний Layout" буде повністю закритий за DoD:
+- ✅ Header: логотип, пошук з live suggestions, динамічний cart badge.
+- ✅ Mobile Bottom Navigation.
+- ✅ Footer.
+- ✅ Навігація веде на реальні роути або тимчасові заглушки.
 
 **Логіка (чому це робимо):**
 
-- У Header вже є пошуковий інпут, але він **декоративний** — нікуди не зберігає значення, нічого не шукає. Це як кнопка ліфта, яка не підключена до двигуна.
-- Перш ніж робити dropdown з підказками (Task #10), потрібно закласти **фундамент**: стан пошуку, debounce (щоб не DDoS-ити бекенд при кожному натисканні клавіші), і ендпоінт, який вміє фільтрувати товари.
-- Розділяємо на два таски, бо "інфраструктура пошуку" та "UI dropdown" — різні відповідальності (SRP). Так легше тестувати і рев'юїти.
+- У Task #9 ми побудували **фундамент**: controlled input, `useDebounce`, backend `?q=` endpoint, `searchCards()` service method. Але візуально нічого не змінилося — юзер вводить текст, а результатів не бачить. Це як мати двигун без колес.
+- Тепер потрібно закрити "останню милю" — **показати результати** пошуку в dropdown під інпутом. Це класичний UX-патерн "search suggestions" / "autocomplete", який є в кожному магазині (Amazon, Rozetka, тощо).
+- Виносимо dropdown в **окремий компонент** `SearchSuggestions`, а не ліпимо все в Header — SRP: Header керує станом пошуку, `SearchSuggestions` відповідає за відображення результатів.
 
 **Scope (важливо):**
 
-- В цьому таску **НЕ** робимо dropdown з підказками (це Task #10).
-- **НЕ** міняємо вигляд Header (візуально все залишається як є).
-- Робимо тільки: хук `useDebounce`, пошуковий стан у Header, backend endpoint з `?q=`, frontend service method.
+- Робимо **тільки** dropdown з підказками під пошуковим інпутом.
+- **НЕ** робимо повноцінну сторінку результатів пошуку (це буде частиною каталогу).
+- **НЕ** робимо складну клавіатурну навігацію по списку (Arrow Up/Down) — це nice-to-have, але не зараз.
+- Сторінка `/product/:id` ще не існує, тому кліком по підказці поки **переходимо на `/product/${id}`** — покаже порожню сторінку, але роут буде валідним коли створимо ProductDetail у Блоці C.
 
 **Що зробити (покроково):**
 
-### Крок 1 — Створити кастомний хук `useDebounce`
+### Крок 1 — Створити компонент `SearchSuggestions`
 
-- **Файл:** `frontend/src/hooks/useDebounce.ts` (створити папку `hooks/` якщо немає).
-- **Сигнатура:** `useDebounce<T>(value: T, delayMs: number): T`
-- **Поведінка:**
-    - Приймає будь-яке значення та затримку в мілісекундах.
-    - Повертає "відкладену" версію значення, яка оновлюється лише через `delayMs` після останньої зміни вхідного `value`.
-    - Використовує `useEffect` + `setTimeout` + `clearTimeout` (cleanup).
-- **Чому generic `<T>`, а не `string`:** хук універсальний — завтра можна дебаунсити числовий фільтр ціни або інший тип.
-- **Рекомендований delay для виклику:** 300ms (стандарт для пошукових підказок — досить швидко для UX, досить повільно щоб не спамити API).
+- **Файл:** `frontend/src/components/SearchSuggestions.tsx` (create).
+- **Props (інтерфейс):**
+    ```
+    interface SearchSuggestionsProps {
+      query: string;           // дебаунсований запит (debouncedQuery)
+      onSelect: () => void;    // колбек при виборі підказки (щоб Header закрив пошук)
+    }
+    ```
+- **Внутрішній стан:**
+    - `results: Card[]` — масив знайдених товарів.
+    - `isLoading: boolean` — індикатор завантаження.
+- **Логіка (useEffect по `query`):**
+    1. Якщо `query.trim().length < 2` — скинути `results` у `[]` і **не** робити запит (нема сенсу шукати за одну букву). Поріг 2 символи — стандарт для autocomplete.
+    2. Якщо `query.length >= 2` — викликати `searchCards(query)` з `cardService.ts`.
+    3. Перед запитом встановити `isLoading = true`, після (success або error) — `isLoading = false`.
+    4. Результат записати в `results`.
+    5. **Race condition:** якщо юзер швидко змінює запит, попередній `searchCards()` може повернутися пізніше за новий. Щоб уникнути "мерехтіння" результатів, використай **AbortController** або прапорець `let ignore = false` в cleanup useEffect:
+        ```
+        useEffect(() => {
+          let cancelled = false;
+          // ... fetch ...
+          if (!cancelled) setResults(data);
+          return () => { cancelled = true; };
+        }, [query]);
+        ```
+- **Рендер:**
+    - Якщо `query.length < 2` — **нічого не рендерити** (`return null`).
+    - Якщо `isLoading` — показати текст "Шукаємо..." (або маленький спінер).
+    - Якщо `results.length === 0` і `!isLoading` — показати "Нічого не знайдено за запитом «{query}»".
+    - Якщо є результати — `<ul>` зі списком `<li>` для кожного товару.
+- **Кожен елемент підказки (`<li>`):**
+    - Обгорнути в `<Link to={`/product/${card.id}`}>`.
+    - Показати: мініатюру зображення (якщо `card.image` є, 40×40px, `object-cover`, `rounded`), назву товару (`card.title`), ціну (`card.price ₴`, шрифт `font-mono`, колір `text-violet-400`).
+    - При кліку — викликати `onSelect()` (щоб Header закрив dropdown і скинув query).
+    - Hover-стан: `bg-gray-700` або аналогічний, щоб було видно курсор.
+- **Стилізація контейнера:**
+    - Список має з'являтися **під** пошуковим інпутом.
+    - Фон: `bg-gray-800`, рамка: `border border-gray-700`, `rounded-lg`, `shadow-xl`.
+    - Максимальна висота: `max-h-80` з `overflow-y-auto` (щоб на маленьких екранах не з'їдав весь простір).
+    - Компонент має бути всередині потоку документа або позиціонуватись відносно обгортки пошуку.
 
-### Крок 2 — Додати стан пошуку в Header
+### Крок 2 — Інтегрувати `SearchSuggestions` в Header
 
 - **Файл:** `frontend/src/layouts/Header.tsx` (update).
-- Додай стан: `const [searchQuery, setSearchQuery] = useState("")`
-- Додай дебаунсоване значення: `const debouncedQuery = useDebounce(searchQuery, 300)`
-- Підключи `searchQuery` до існуючого `<input>`:
-    - `value={searchQuery}`
-    - `onChange={(e) => setSearchQuery(e.target.value)}`
-- **Важливо:** при закритті пошуку (`isSearchOpen` стає `false`) — очищай `searchQuery` до `""`, щоб при повторному відкритті інпут був чистим.
-- Тимчасово `console.log("Search:", debouncedQuery)` для перевірки — прибереш у Task #10.
-- `debouncedQuery` поки нікуди не передаємо — стане тригером для API-запиту в наступному таску.
+- **Де розмістити:** всередині блоку `{isSearchOpen && (...)}`, **після** `<div>` з інпутом, але всередині того ж контейнера `border-t border-gray-800`.
+- **Передати пропси:**
+    - `query={debouncedQuery}`
+    - `onSelect={() => setIsSearchOpen(false)}` — при виборі підказки закриваємо пошук.
+- **Видалити** тимчасовий `console.log("Search:", debouncedQuery)` з Task #9 — він більше не потрібний, тепер є реальний UI.
+- **Видалити** `useEffect`, що логував `debouncedQuery` — він існував тільки для дебагу.
+- **Import:** додати `import { SearchSuggestions } from "../components/SearchSuggestions"`.
 
-### Крок 3 — Розширити backend endpoint для пошуку
+### Крок 3 — Закриття dropdown при кліку поза ним
 
-- **Файл:** `backend/src/routes/cards.ts` (update).
-- Розшир існуючий `GET /cards`, додавши підтримку query-параметра `?q=`:
-    - Якщо `req.query.q` відсутній або порожній — повертай ВСІ картки (як зараз, без регресії).
-    - Якщо `req.query.q` заданий — `SELECT * FROM cards WHERE title LIKE ? ORDER BY id DESC LIMIT 10` з параметром `%${q}%`.
-- **Безпека:** ОБОВ'ЯЗКОВО використовуй параметризований запит (placeholder `?`), **НЕ** конкатенуй рядок у SQL (SQL injection).
-- **Типізація:** `req.query.q` це `string | QueryString... | undefined`. Приведи явно:
-    ```typescript
-    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-    ```
-- **Ліміт:** `LIMIT 10` для пошукового запиту — для підказок не потрібно багато результатів.
-- Для повного списку (без `?q`) лімітів не додаємо (поки що).
+- **Поведінка:** якщо юзер натискає кудись поза пошуковим блоком (інпут + dropdown), пошук має закритися.
+- **Рекомендований підхід:** створити невеликий хук `useClickOutside(ref, callback)` у `frontend/src/hooks/useClickOutside.ts`, або реалізувати логіку прямо в Header через `useRef` + `useEffect` з `mousedown` listener.
+- **Хук `useClickOutside`:**
+    - **Файл:** `frontend/src/hooks/useClickOutside.ts` (create).
+    - **Сигнатура:** `useClickOutside(ref: RefObject<HTMLElement | null>, callback: () => void): void`
+    - Всередині: `useEffect` додає `document.addEventListener("mousedown", handler)`, де handler перевіряє `ref.current?.contains(event.target as Node)`. Якщо клік поза — `callback()`.
+    - Cleanup: `removeEventListener` в return.
+- **В Header:**
+    - Обгорни весь блок пошуку (інпут + dropdown) в `<div ref={searchRef}>`.
+    - Підключи: `useClickOutside(searchRef, () => setIsSearchOpen(false))`.
+- **Escape:** додай обробник `onKeyDown` на інпут: якщо `e.key === "Escape"` — `setIsSearchOpen(false)`.
 
-### Крок 4 — Додати frontend service method для пошуку
+### Крок 4 — Доступність (a11y)
 
-- **Файл:** `frontend/src/services/cardService.ts` (update).
-- Додай функцію:
-    ```typescript
-    export const searchCards = (query: string): Promise<Card[]> =>
-      apiGet<Card[]>(`${RESOURCE}?q=${encodeURIComponent(query)}`);
-    ```
-- **Чому `encodeURIComponent`:** якщо юзер введе `&` або `#` у пошук, URL не зламається.
-- Цю функцію поки **ніхто не викликає** — вона знадобиться в Task #10 коли підключимо dropdown.
+- `<ul>` зі списком підказок: додай `role="listbox"` і `aria-label="Результати пошуку"`.
+- Кожен `<li>`: `role="option"`.
+- Інпут пошуку: додай `aria-autocomplete="list"` і `aria-controls="search-suggestions"`.
+- `<ul>` має мати `id="search-suggestions"` (щоб інпут міг на нього посилатися).
+- Статусне повідомлення "Знайдено X результатів" або "Нічого не знайдено" — обгорни в `<div aria-live="polite">` щоб скрінрідер озвучив зміну.
 
 **Файли для створення/змін:**
 
 | Файл | Дія |
 |------|-----|
-| `frontend/src/hooks/useDebounce.ts` | **create** |
+| `frontend/src/components/SearchSuggestions.tsx` | **create** |
+| `frontend/src/hooks/useClickOutside.ts` | **create** |
 | `frontend/src/layouts/Header.tsx` | update |
-| `backend/src/routes/cards.ts` | update |
-| `frontend/src/services/cardService.ts` | update |
 
 **Критерії приймання:**
 
-- [ ] Хук `useDebounce` існує, типізований generic `<T>`, без `any`.
-- [ ] Header `<input>` є controlled (`value` + `onChange`), debounce працює (видно в `console.log` при введенні тексту з затримкою ~300ms).
-- [ ] При закритті пошуку (`isSearchOpen` стає `false`) стан скидається до `""`.
-- [ ] `GET /cards?q=marvel` повертає лише товари з "marvel" у назві (case-insensitive через SQL `LIKE`).
-- [ ] `GET /cards` без `?q` працює як раніше (без регресії).
-- [ ] Пошуковий SQL використовує `?` placeholder (без конкатенації рядків).
-- [ ] `searchCards()` існує в `cardService.ts`, правильно кодує query через `encodeURIComponent`.
+- [ ] Компонент `SearchSuggestions` існує, приймає `query` і `onSelect` пропси.
+- [ ] При введенні >= 2 символів — з'являється dropdown з результатами від API.
+- [ ] Показується стан "Шукаємо..." під час завантаження.
+- [ ] Показується "Нічого не знайдено" якщо API повернув порожній масив.
+- [ ] Кожна підказка містить: зображення (якщо є), назву, ціну.
+- [ ] Клік по підказці закриває dropdown і переходить на `/product/${id}`.
+- [ ] Клік поза пошуковим блоком закриває пошук.
+- [ ] Натискання Escape закриває пошук.
+- [ ] `console.log("Search:", debouncedQuery)` видалено з Header.
+- [ ] Race condition оброблений (cancelled / ignore прапорець).
+- [ ] Базова a11y: `role="listbox"`, `aria-live`, `aria-autocomplete`.
 - [ ] Немає `any`, TypeScript strict.
+- [ ] Мобільна версія: dropdown не виходить за межі екрану, скролиться при великій кількості результатів.
