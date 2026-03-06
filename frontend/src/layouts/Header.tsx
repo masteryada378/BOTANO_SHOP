@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { ShoppingCart, User, Search, Menu, X, Zap } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { useDebounce } from "../hooks/useDebounce";
+import { useClickOutside } from "../hooks/useClickOutside";
 import { SearchSuggestions } from "../components/SearchSuggestions";
 
 const NAV_LINKS = [
@@ -35,11 +36,22 @@ export const Header = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedQuery = useDebounce(searchQuery, 300);
 
+    // Реф на контейнер пошуку (інпут + dropdown разом).
+    // useClickOutside отримає цей реф і закриє пошук при кліку поза ним.
+    const searchContainerRef = useRef<HTMLDivElement>(null);
+
+    // useCallback стабілізує посилання на функцію між рендерами.
+    // Без useCallback useClickOutside отримував би нову функцію при кожному рендері,
+    // що призводило б до постійного перепідписання document listener.
+    const closeSearch = useCallback(() => setIsSearchOpen(false), []);
+
+    // Підключаємо хук: при mousedown поза searchContainerRef → closeSearch()
+    useClickOutside(searchContainerRef, closeSearch);
+
     useEffect(() => {
+        // Скидаємо текст запиту коли пошук закрито (напр. Escape або клік поза)
         if (!isSearchOpen) setSearchQuery("");
     }, [isSearchOpen]);
-
-    // Debug-ефект з Task #9 видалено — тепер є реальний UI (SearchSuggestions)
 
     const cartCount = cart.length;
     const cartLabel =
@@ -143,11 +155,15 @@ export const Header = () => {
                         Пошук по сайту
                     </label>
                     {/*
-                     * Обгортка інпуту + dropdown в одному блоці.
-                     * Це важливо для Кроку 3 (useClickOutside):
-                     * ref буде навішений на цей div, щоб клік поза ним закривав пошук.
+                     * searchContainerRef навішений тут — на спільний контейнер
+                     * інпуту і dropdown. useClickOutside вважає клік "зовнішнім"
+                     * тільки якщо він поза цим div, тобто кліки по інпуту і
+                     * підказках не закривають пошук.
                      */}
-                    <div className="container mx-auto max-w-7xl">
+                    <div
+                        ref={searchContainerRef}
+                        className="container mx-auto max-w-7xl"
+                    >
                         {/* Рядок пошуку */}
                         <div className="flex items-center gap-2 rounded-md bg-gray-800 px-3 ring-1 ring-gray-700 focus-within:ring-violet-500 transition">
                             <Search
@@ -162,6 +178,13 @@ export const Header = () => {
                                 autoFocus
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
+                                // Escape — найочікуваніша клавіша для закриття пошуку
+                                // (стандарт UX: Google, Rozetka, Amazon).
+                                // Закриваємо через closeSearch(), щоб також скинути query
+                                // через useEffect [isSearchOpen].
+                                onKeyDown={(e) => {
+                                    if (e.key === "Escape") closeSearch();
+                                }}
                                 // aria-autocomplete="list" + aria-controls зв'язують інпут
                                 // з dropdown для скрінрідерів (ARIA 1.2 combobox pattern)
                                 aria-autocomplete="list"
@@ -177,7 +200,7 @@ export const Header = () => {
                          */}
                         <SearchSuggestions
                             query={debouncedQuery}
-                            onSelect={() => setIsSearchOpen(false)}
+                            onSelect={closeSearch}
                         />
                     </div>
                 </div>
@@ -217,4 +240,3 @@ export const Header = () => {
         </header>
     );
 };
-
