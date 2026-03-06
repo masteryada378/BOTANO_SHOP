@@ -318,146 +318,196 @@
 
 ## 18) Task #11 ✅ — Створити сторінку Catalog (Блок C — перший крок)
 
-**Назва:** Базова сторінка каталогу з клієнтськими картками товарів
+Виконано. Створено `CatalogCard` (клієнтська картка: зображення/placeholder, назва, ціна, "В кошик") та `CatalogPage` з grid (2/3/4 cols), loading/empty/error станами. Додано роут `/catalog`, увімкнено Catalog у `BottomNavigation`.
 
-**Бекграунд (Блок C — Catalog & Product, пункт 11 з бэклогу):**
+---
 
-Це **перший** крок Блоку C і початок **Етапу 2 "Каталог і пошук"**. Ми переходимо від оболонки (Layout) до контенту — сторінки, де користувач переглядає товари для покупки.
+## 19) Task #12 — Toolbar для каталогу: лічильник, сортування, тригер фільтрів
 
-Нагадаю DoD Етапу 2:
-- Є сторінка каталогу з breadcrumbs, toolbar, sort/filter.
-- У мобільній версії фільтри відкриваються в drawer/modal.
-- Є пагінація або стабільний infinite scroll.
-- Пошук працює через API/дані і не блокує UI.
+**Назва:** Додати панель інструментів (toolbar) над grid каталогу
 
-У цьому таску закриваємо **лише** базову сторінку та grid з картками. Toolbar, фільтри, breadcrumbs, пагінація — це окремі таски (12–15).
+**Бекграунд (Блок C — Catalog & Product, пункт 12 з бэклогу):**
+
+Другий крок Блоку C. Каталог вже показує товари у grid, але **без жодних інструментів** — юзер не може ні сортувати, ні бачити скільки товарів знайдено, ні запустити фільтри. Toolbar — це "панель керування" каталогом.
+
+Після цього таску залишиться:
+- Task #13: mobile filter drawer (сам drawer з фільтрами).
+- Task #14: ProductDetail page.
+- Task #15: breadcrumbs.
 
 **Логіка (чому це робимо):**
 
-- Зараз на Home (`/`) товари відображаються через `ProductCard`, який має кнопки **"Редагувати"** і **"Видалити"** — це адмінський функціонал, не клієнтський. Каталог — це **сторінка для покупця**: він хоче бачити фото, назву, ціну і кнопку "Додати в кошик", а не CRUD-інструменти.
-- Тому потрібен **новий компонент** `CatalogCard` — "клієнтська" картка товару, орієнтована на конверсію (додати в кошик, перейти до деталей).
-- Сторінка Catalog (`/catalog`) стане основним місцем перегляду асортименту. Home залишається вітриною (hero, featured, категорії — це буде пізніше).
-- Роут `/catalog` вже визначений у `BottomNavigation`, але позначений як `enabled: false`. Після цього таску — він стане активним.
+- **Лічильник результатів** — базовий UX-елемент: юзер має розуміти "скільки товарів є" (наприклад, "24 товари"). Без цього каталог виглядає як нескінченна невідома стіна.
+- **Сортування** — другий за важливістю інструмент після пошуку. "Від дешевих до дорогих" — найчастіший сценарій у будь-якому магазині (Rozetka, Amazon, тощо). Без сортування юзер вимушений скролити хаотичний список.
+- **Кнопка "Фільтри"** — поки лише **тригер** (кнопка, яка в Task #13 відкриватиме drawer). Зараз вона буде візуально присутня, але при натисканні нічого не робитиме (або покаже `console.log`). Чому не відкладати? Бо toolbar без кнопки фільтрів виглядає неповним, а додати кнопку зараз — 2 хвилини, а не окремий таск.
+- **Backend sorting** — зараз `GET /cards` завжди повертає `ORDER BY id DESC`. Для сортування за ціною потрібно передати параметр `?sort=price_asc` або `?sort=price_desc`, і бекенд має вибирати правильний `ORDER BY`.
+- **URL-синхронізація (useSearchParams)** — сортування зберігається в URL (`/catalog?sort=price_asc`), щоб при оновленні сторінки або поширенні посилання стан не втрачався. Це стандарт для каталогів.
 
 **Scope (важливо):**
 
-- Створити сторінку `Catalog` з grid товарів.
-- Створити компонент `CatalogCard` (клієнтський: фото, назва, ціна, "Додати в кошик").
-- Додати роут `/catalog` до роутера.
-- Увімкнути Catalog у `BottomNavigation`.
-- **НЕ** робимо toolbar, sorting, filters, breadcrumbs (Tasks #12, #13, #15).
-- **НЕ** робимо пагінацію/infinite scroll (окремий таск).
-- **НЕ** чіпаємо Home — вона залишається як є.
+- Toolbar: лічильник результатів, dropdown/select для сортування, кнопка "Фільтри" (тригер без drawer).
+- Backend: підтримка `?sort=` у `GET /cards`.
+- Frontend: синхронізація сортування з URL через `useSearchParams`.
+- **НЕ** робимо filter drawer (Task #13).
+- **НЕ** робимо пагінацію (окремий таск).
+- **НЕ** робимо breadcrumbs (Task #15).
 
 **Що зробити (покроково):**
 
-### Крок 1 — Створити компонент `CatalogCard`
+### Крок 1 — Розширити backend: підтримка `?sort=`
 
-- **Файл:** `frontend/src/components/CatalogCard.tsx` (create).
-- **Чому окремий від `ProductCard`?** `ProductCard` — адмінська картка з Edit/Delete. `CatalogCard` — покупницька картка з "Додати в кошик" і переходом до деталей. Різні відповідальності = різні компоненти (SRP). В майбутньому вони можуть мати спільний "base" компонент, але зараз простіше тримати їх окремо.
+- **Файл:** `backend/src/routes/cards.ts` (update).
+- Додай підтримку query-параметра `?sort=` до існуючого `GET /cards`.
+- **Допустимі значення:** `price_asc`, `price_desc`, `newest` (default), `oldest`.
+- **Логіка:**
+    1. Зчитай параметр: `const sort = typeof req.query.sort === "string" ? req.query.sort : "newest";`
+    2. Створи маппінг значень на SQL `ORDER BY`:
+        ```
+        const ORDER_MAP: Record<string, string> = {
+          price_asc: "price ASC",
+          price_desc: "price DESC",
+          newest: "id DESC",
+          oldest: "id ASC",
+        };
+        ```
+    3. Визнач `ORDER BY`: `const orderBy = ORDER_MAP[sort] ?? ORDER_MAP.newest;`
+        - **Чому fallback?** Якщо хтось пришле `?sort=hacked_value` — не падаємо, а використовуємо дефолтний сорт. Ніколи не підставляй user input прямо у SQL — тут маппінг захищає від injection.
+    4. Підстав `orderBy` у SQL-запит. **ВАЖЛИВО:** `ORDER BY` не можна параметризувати через `?` placeholder (MySQL не підтримує placeholders для ORDER BY clause). Оскільки `orderBy` береться виключно з `ORDER_MAP` (а не з user input напряму), це безпечно.
+- **Сумісність з `?q=`:** сортування має працювати разом з пошуком. Якщо передано `?q=marvel&sort=price_asc` — фільтруємо за назвою І сортуємо за ціною.
+- **Рефактор запиту:** зараз є два окремих `pool.query()` (з `q` і без). Об'єднай в один шлях з динамічним `WHERE` і `ORDER BY`, щоб не дублювати логіку:
+    ```
+    let sql = "SELECT * FROM cards";
+    const params: string[] = [];
+
+    if (q) {
+      sql += " WHERE title LIKE ?";
+      params.push(`%${q}%`);
+    }
+
+    sql += ` ORDER BY ${orderBy}`;
+
+    if (q) {
+      sql += " LIMIT 10";
+    }
+
+    const [rows] = await pool.query(sql, params);
+    ```
+
+### Крок 2 — Оновити frontend service: передача `sort`
+
+- **Файл:** `frontend/src/services/cardService.ts` (update).
+- **Тип сортування** — створи тип у файлі типів або прямо в сервісі:
+    ```
+    export type SortOption = "newest" | "oldest" | "price_asc" | "price_desc";
+    ```
+    Краще винести в `frontend/src/types/catalog.ts` (create) — цей тип знадобиться і в компонентах, і в сервісі.
+- **Оновити `fetchCards()`** — додай опціональний параметр sort:
+    ```
+    export const fetchCards = (sort?: SortOption): Promise<Card[]> => {
+      const params = new URLSearchParams();
+      if (sort) params.set("sort", sort);
+      const qs = params.toString();
+      return apiGet<Card[]>(qs ? `${RESOURCE}?${qs}` : RESOURCE);
+    };
+    ```
+    **Чому `URLSearchParams`?** Безпечна побудова query string, автоматичне кодування. Також легко додати нові параметри в майбутньому (page, limit, filters) без ручної конкатенації.
+
+### Крок 3 — Створити компонент `CatalogToolbar`
+
+- **Файл:** `frontend/src/components/CatalogToolbar.tsx` (create).
 - **Props (інтерфейс):**
     ```
-    interface CatalogCardProps {
-      id: number;
-      title: string;
-      price: number;
-      image?: string;
+    interface CatalogToolbarProps {
+      totalCount: number;       // кількість товарів для відображення лічильника
+      currentSort: SortOption;  // поточне значення сортування
+      onSortChange: (sort: SortOption) => void;  // колбек при зміні сорту
+      onFilterClick: () => void;  // колбек для кнопки "Фільтри"
     }
     ```
-    Тобто це просто `Card`, але краще типізувати пропси явно — не прив'язуємо UI до DTO.
-- **Структура картки (зверху вниз):**
-    1. **Посилання-обгортка:** вся картка (або її верхня частина — зображення + назва) обгорнута в `<Link to={`/product/${id}`}>`. Клік по картці = перехід на деталі товару. Роут `/product/:id` ще не існує, але буде в Task #14.
-    2. **Зображення:** якщо `image` є — `<img>` з `object-cover`, `rounded-t-xl`, висота ~`h-48` (адаптивно). Якщо `image` відсутній — placeholder: сірий блок з іконкою або текстом "No image". Використай іконку `ImageOff` з `lucide-react` (або аналогічну).
-    3. **Тіло картки (padding):**
-        - **Назва:** `<h3>`, `text-sm font-semibold text-gray-100`, `line-clamp-2` (обрізати довгі назви до 2 рядків).
-        - **Ціна:** `font-mono font-bold text-violet-400` — гік-стиль шрифтом. Формат: `{price} ₴`.
-    4. **Кнопка "Додати в кошик":**
-        - Зовнішня від `<Link>` (щоб клік по кнопці не переходив на сторінку деталей).
-        - Текст: "В кошик" або іконка `ShoppingCart` з `lucide-react` + короткий текст.
-        - По кліку: `addToCart(id)` з `useAppContext()`.
-        - Стилі: `bg-violet-600 hover:bg-violet-500`, `text-white`, `rounded-lg`, `w-full`, `py-2`.
-        - `aria-label={`Додати "${title}" в кошик`}`.
-- **Стилізація контейнера:**
-    - `rounded-xl`, `border border-gray-700`, `bg-gray-800`.
-    - Hover: `hover:border-violet-500/60`, `hover:shadow-lg hover:shadow-violet-900/20` (як у `ProductCard`, для консистентності).
-    - `flex flex-col` — зображення зверху, контент знизу, кнопка приклеєна до низу (`mt-auto`).
-    - `overflow-hidden` — щоб `rounded` працював з зображенням.
-    - Transition: `transition-all duration-200` для плавності.
+- **Структура (горизонтальний рядок):**
+    - Layout: `flex items-center justify-between gap-2`, щоб елементи рівномірно розподілились.
+    - На мобілці: все в одному рядку, компактно.
+    1. **Лічильник результатів (ліворуч):**
+        - Текст: `{totalCount} товарів` (або правильна відміна: "1 товар", "2 товари", "5 товарів").
+        - Використай допоміжну функцію для відміни (аналогічну `getCartLabelSuffix` з Header, але для "товар/товари/товарів"). Можна винести спільну утиліту `pluralize()` у `frontend/src/lib/pluralize.ts`, або написати inline.
+        - Стиль: `text-sm text-gray-400`.
+    2. **Dropdown сортування (праворуч):**
+        - Реалізуй через нативний `<select>` — простий, доступний, не потребує кастомного dropdown.
+        - Опції:
+            - "Спочатку нові" → `newest`
+            - "Спочатку старі" → `oldest`
+            - "Від дешевих" → `price_asc`
+            - "Від дорогих" → `price_desc`
+        - `value={currentSort}`, `onChange={(e) => onSortChange(e.target.value as SortOption)}`.
+        - Стилі: `bg-gray-800 text-gray-200 border border-gray-700 rounded-lg px-3 py-1.5 text-sm`, `focus:ring-violet-500`.
+        - `aria-label="Сортування товарів"`.
+    3. **Кнопка "Фільтри" (поруч з сортуванням або під ним на мобілці):**
+        - Іконка `SlidersHorizontal` з `lucide-react` + текст "Фільтри".
+        - `onClick={onFilterClick}`.
+        - Стилі: `bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700`.
+        - На desktop (md+) цю кнопку можна **сховати** (`md:hidden`), бо фільтри на desktop будуть у sidebar (не в drawer). Або залишити видимою — залежно від того, як будемо робити desktop filters. Поки **залишай видимою** на всіх розмірах.
 
-### Крок 2 — Створити сторінку `Catalog`
+### Крок 4 — Інтегрувати toolbar + sorting у `CatalogPage`
 
-- **Файл:** `frontend/src/pages/Catalog.tsx` (create).
-- **Структура:**
-    1. **Заголовок секції:**
-        - `<section aria-labelledby="catalog-heading">` (семантична обгортка).
-        - `<h1 id="catalog-heading">` — "Каталог" (або "Каталог товарів").
-        - Підзаголовок `<p>` — "Обирай серед усіх товарів" (або подібний).
-    2. **Grid товарів:**
-        - Завантаження через `fetchCards()` з `cardService.ts` (як на Home, але без CRUD).
-        - Grid: `grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4`.
-        - **Чому `grid-cols-2` (mobile)?** Для каталогу магазину 2 колонки на мобілці — стандарт (Rozetka, Amazon). Дає більше товарів на екрані, ніж 1 колонка. Home може залишатися з 1 колонкою (там більший фокус на Hero).
-        - Кожен товар рендериться через `<CatalogCard {...card} />`.
-    3. **Loading state:**
-        - Скелетони: `CatalogCardSkeleton` — прямокутник, який імітує форму `CatalogCard`.
-        - Кількість: 8 штук (2 ряди по 4 = заповнює десктопний grid).
-        - Анімація: `animate-pulse`.
-    4. **Empty state:**
-        - Якщо `products.length === 0` і `!isLoading` — показати повідомлення: "Товарів поки немає".
-        - Можна додати іконку `PackageOpen` з `lucide-react`.
-    5. **Error state:**
-        - Якщо `fetchCards()` падає — зберегти помилку в стані (`error: string | null`).
-        - Показати: "Не вдалося завантажити товари. Спробуйте пізніше." з кнопкою "Спробувати знову" (яка викличе `loadProducts()` повторно).
-- **Іменований експорт:** `export const CatalogPage = () => { ... }` (без `export default` — відповідно до правил проєкту).
-
-### Крок 3 — Додати роут `/catalog` у роутер
-
-- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
-- Додай новий child route:
+- **Файл:** `frontend/src/pages/Catalog.tsx` (update).
+- **URL-синхронізація сортування:**
+    1. Імпортуй `useSearchParams` з `react-router-dom`.
+    2. Зчитай поточний sort з URL: `const [searchParams, setSearchParams] = useSearchParams();`
+    3. `const currentSort: SortOption = (searchParams.get("sort") as SortOption) || "newest";`
+    4. При зміні сорту: `setSearchParams({ sort: newSort })` — оновлює URL без перезавантаження.
+    5. **Валідація:** якщо `searchParams.get("sort")` містить невалідне значення — fallback до `"newest"`. Створи масив допустимих значень і перевіряй через `.includes()`.
+- **Передай `currentSort` у `fetchCards()`:**
+    - В `useEffect` (або `useCallback`), де завантажуються товари, передай `fetchCards(currentSort)`.
+    - `currentSort` має бути у масиві залежностей `useEffect` — при зміні сорту товари перезавантажаться.
+- **Розмісти `CatalogToolbar`** між заголовком секції та grid:
     ```
-    {
-      path: "catalog",
-      element: <CatalogPage />,
-    }
+    <CatalogToolbar
+      totalCount={products.length}
+      currentSort={currentSort}
+      onSortChange={(sort) => setSearchParams({ sort })}
+      onFilterClick={() => console.log("TODO: open filter drawer")}
+    />
     ```
-- **Import:** `import { CatalogPage } from "../pages/Catalog"`.
-- **Чому `path: "catalog"` а не `path: "/catalog"`?** У react-router v6 дочірні роути відносні до батьківського. Батько має `path: "/"`, тому `"catalog"` резолвиться в `/catalog`. Але `/catalog` теж працює — обирай стиль, який вже використовується в проєкті (зараз у тебе `path: "/"` для Home).
+- **Loading state:** при зміні сорту показувати скелетони (бо товари перезавантажуються). `CatalogToolbar` **залишається видимим** під час loading — лічильник може тимчасово показувати "..." або попереднє значення. Не ховай toolbar на час завантаження.
 
-### Крок 4 — Увімкнути Catalog у `BottomNavigation`
+### Крок 5 — Типи каталогу
 
-- **Файл:** `frontend/src/layouts/BottomNavigation.tsx` (update).
-- Знайди елемент з `to: "/catalog"` в масиві `bottomNavItems`.
-- Зміни `enabled: false` на `enabled: true`.
-- Тепер Catalog буде клікабельним у мобільній нижній панелі.
+- **Файл:** `frontend/src/types/catalog.ts` (create).
+- Винеси сюди:
+    ```
+    export type SortOption = "newest" | "oldest" | "price_asc" | "price_desc";
 
-### Крок 5 — Навігація з Header (Desktop)
-
-- **Файл:** `frontend/src/layouts/Header.tsx` — перевір, що у `NAV_LINKS` вже є `{ to: "/catalog", label: "Каталог" }`.
-- Якщо є — нічого додатково не потрібно, NavLink вже рендериться.
-- Якщо немає — додай.
-- Зараз у `NAV_LINKS` є: `/`, `/catalog`, `/comics`, `/figures`, `/devices`, `/contacts` — тобто `/catalog` **вже є**. Все добре, десктопна навігація працюватиме з коробки.
+    export const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+      { value: "newest", label: "Спочатку нові" },
+      { value: "oldest", label: "Спочатку старі" },
+      { value: "price_asc", label: "Від дешевих" },
+      { value: "price_desc", label: "Від дорогих" },
+    ];
+    ```
+- **Чому окремий файл?** `SortOption` використовується в 3 місцях: тип, сервіс, компонент. Один source of truth.
+- **Чому `SORT_OPTIONS` масив?** `<select>` рендерить опції через `.map()`, а масив гарантує порядок (на відміну від об'єкта).
 
 **Файли для створення/змін:**
 
 | Файл | Дія |
 |------|-----|
-| `frontend/src/components/CatalogCard.tsx` | **create** |
-| `frontend/src/pages/Catalog.tsx` | **create** |
-| `frontend/src/routes/AppRoutes.tsx` | update |
-| `frontend/src/layouts/BottomNavigation.tsx` | update |
+| `frontend/src/types/catalog.ts` | **create** |
+| `frontend/src/components/CatalogToolbar.tsx` | **create** |
+| `backend/src/routes/cards.ts` | update |
+| `frontend/src/services/cardService.ts` | update |
+| `frontend/src/pages/Catalog.tsx` | update |
 
 **Критерії приймання:**
 
-- [ ] Сторінка `/catalog` існує і відображає grid товарів від API.
-- [ ] `CatalogCard` має: зображення (або placeholder), назву (line-clamp-2), ціну (`font-mono`), кнопку "В кошик".
-- [ ] Кнопка "В кошик" додає товар через `addToCart()` з `AppContext`.
-- [ ] Клік по картці (зображення/назва) переходить на `/product/${id}`.
-- [ ] Клік по кнопці "В кошик" **НЕ** переходить на сторінку деталей (event propagation оброблений).
-- [ ] Grid: 2 колонки (mobile), 3 (tablet), 4 (desktop).
-- [ ] Loading: показуються скелетони `CatalogCardSkeleton` (animate-pulse).
-- [ ] Empty: повідомлення "Товарів поки немає" якщо API повернув `[]`.
-- [ ] Error: повідомлення + кнопка "Спробувати знову".
-- [ ] Catalog увімкнений в `BottomNavigation` (`enabled: true`).
-- [ ] Роут `/catalog` додано в `AppRoutes.tsx`.
-- [ ] Іменований експорт (`export const CatalogPage`).
+- [ ] `GET /cards?sort=price_asc` повертає товари, відсортовані за ціною зростаюче; `price_desc` — спадаюче; `newest` / `oldest` — за id.
+- [ ] `?sort=` працює в комбінації з `?q=` (наприклад, `?q=marvel&sort=price_asc`).
+- [ ] Невалідне значення `sort` fallback-иться до `newest` (без помилки).
+- [ ] Toolbar відображається над grid: лічильник ліворуч, сортування + кнопка фільтрів праворуч.
+- [ ] Лічильник показує правильну кількість з правильною відміною ("1 товар", "3 товари", "10 товарів").
+- [ ] Зміна сортування у `<select>` оновлює URL (`/catalog?sort=price_desc`) і перезавантажує товари.
+- [ ] При оновленні сторінки (F5) з `?sort=price_asc` — сортування зберігається.
+- [ ] Кнопка "Фільтри" присутня, при натисканні поки `console.log` (drawer буде в Task #13).
+- [ ] Toolbar видимий під час loading (лічильник може бути "..." або 0).
+- [ ] `SortOption` і `SORT_OPTIONS` винесені в `types/catalog.ts`.
+- [ ] Backend не підставляє user input прямо у SQL — використовується маппінг `ORDER_MAP`.
 - [ ] Немає `any`, TypeScript strict.
-- [ ] Mobile-first: 2 колонки на малих екранах, картки не розтягуються.
