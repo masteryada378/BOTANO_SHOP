@@ -1,36 +1,76 @@
+/**
+ * CatalogPage — сторінка каталогу товарів.
+ *
+ * Відповідальність:
+ * - Керує станом завантаження, товарів та помилок.
+ * - Синхронізує параметр sort з URL через useSearchParams.
+ * - Передає sort у fetchCards → бекенд повертає відсортовані дані.
+ */
+
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PackageOpen, RefreshCw } from "lucide-react";
 import { CatalogCard, CatalogCardSkeleton } from "../components/CatalogCard";
+import { CatalogToolbar } from "../components/CatalogToolbar";
 import { fetchCards } from "../services/cardService";
 import type { Card } from "../types/Card";
+import type { SortOption } from "../types/catalog";
+import { VALID_SORT_VALUES } from "../types/catalog";
 
 const SKELETON_COUNT = 8;
+
+/**
+ * Парсимо sort з URL з валідацією.
+ *
+ * Чому не довіряємо URL напряму?
+ * — Юзер може вручну написати ?sort=anything. Якщо значення невалідне —
+ *   тихо повертаємо "newest" замість того щоб передати сміття у запит.
+ */
+const parseSortParam = (raw: string | null): SortOption => {
+    if (raw && (VALID_SORT_VALUES as string[]).includes(raw)) {
+        return raw as SortOption;
+    }
+    return "newest";
+};
 
 export const CatalogPage = () => {
     const [products, setProducts] = useState<Card[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // useSearchParams — зберігає стан сортування в URL (стандарт для каталогів)
+    const [searchParams, setSearchParams] = useSearchParams();
+    const currentSort = parseSortParam(searchParams.get("sort"));
+
+    /**
+     * loadProducts залежить від currentSort — при зміні URL-параметра
+     * useCallback отримає нову функцію → useEffect перезапустить завантаження.
+     */
     const loadProducts = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await fetchCards();
+            const data = await fetchCards(currentSort);
             setProducts(data);
         } catch {
             setError("Не вдалося завантажити товари. Спробуйте пізніше.");
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [currentSort]);
 
     useEffect(() => {
         loadProducts();
     }, [loadProducts]);
 
+    /** При зміні сортування оновлюємо URL — без перезавантаження сторінки */
+    const handleSortChange = (sort: SortOption) => {
+        setSearchParams({ sort });
+    };
+
     return (
         <section aria-labelledby="catalog-heading" className="px-4 py-6 md:px-6">
-            <header className="mb-6">
+            <header className="mb-4">
                 <h1
                     id="catalog-heading"
                     className="text-2xl font-bold text-gray-100"
@@ -41,6 +81,21 @@ export const CatalogPage = () => {
                     Обирай серед усіх доступних товарів
                 </p>
             </header>
+
+            {/*
+             * Toolbar залишається видимим навіть під час loading —
+             * юзер бачить інструменти й може змінити сортування до завершення запиту.
+             * Лічильник показує null (→ "Завантаження...") поки isLoading.
+             */}
+            <CatalogToolbar
+                totalCount={isLoading ? null : products.length}
+                currentSort={currentSort}
+                onSortChange={handleSortChange}
+                onFilterClick={() =>
+                    // TODO Task #13: відкривати filter drawer
+                    console.log("TODO: open filter drawer")
+                }
+            />
 
             {error && (
                 <div className="flex flex-col items-center gap-4 py-16 text-center">

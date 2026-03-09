@@ -10,14 +10,25 @@
  */
 
 import { Card } from "../types/Card";
+import type { SortOption } from "../types/catalog";
 import { apiDelete, apiGet, apiPost, apiPut } from "./api";
 
 /** Базовий шлях ресурсу відносно VITE_API_URL */
 const RESOURCE = "/cards";
 
-/** Отримати всі картки */
-export const fetchCards = (): Promise<Card[]> =>
-  apiGet<Card[]>(RESOURCE);
+/**
+ * Отримати картки з опціональним сортуванням.
+ *
+ * Чому URLSearchParams?
+ * — Безпечна побудова query string з автоматичним кодуванням значень.
+ *   Легко розширити новими параметрами (page, limit, filters) без ручної конкатенації.
+ */
+export const fetchCards = (sort?: SortOption): Promise<Card[]> => {
+    const params = new URLSearchParams();
+    if (sort) params.set("sort", sort);
+    const qs = params.toString();
+    return apiGet<Card[]>(qs ? `${RESOURCE}?${qs}` : RESOURCE);
+};
 
 /** Пошук карток за query (для live suggestions) */
 export const searchCards = (query: string): Promise<Card[]> =>
