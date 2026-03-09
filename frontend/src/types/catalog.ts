@@ -57,3 +57,16 @@ export const CATEGORIES = [
 
 /** Тип значення категорії (union з масиву CATEGORIES) */
 export type CategoryValue = (typeof CATEGORIES)[number]["value"];
+
+/**
+ * Один елемент ланцюжка breadcrumbs.
+ *
+ * Чому `to` опціональний?
+ * — Останній елемент (поточна сторінка) НЕ є посиланням.
+ *   Якщо `to` відсутній — рендеримо <span aria-current="page">.
+ *   Це стандартний патерн для семантичних breadcrumbs (a11y + SEO).
+ */
+export interface BreadcrumbItem {
+    label: string;
+    to?: string;
+}

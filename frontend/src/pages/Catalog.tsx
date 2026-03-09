@@ -10,13 +10,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PackageOpen, RefreshCw } from "lucide-react";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { CatalogCard, CatalogCardSkeleton } from "../components/CatalogCard";
 import { CatalogToolbar } from "../components/CatalogToolbar";
 import { FilterDrawer } from "../components/FilterDrawer";
 import { fetchCards } from "../services/cardService";
 import type { Card } from "../types/Card";
-import type { CatalogFilters, SortOption } from "../types/catalog";
-import { VALID_SORT_VALUES } from "../types/catalog";
+import type { BreadcrumbItem, CatalogFilters, SortOption } from "../types/catalog";
+import { CATEGORIES, VALID_SORT_VALUES } from "../types/catalog";
 
 const SKELETON_COUNT = 8;
 
@@ -117,9 +118,37 @@ export const CatalogPage = () => {
         setIsFilterOpen(false);
     };
 
+    /*
+     * Breadcrumbs — динамічний ланцюжок залежно від активної категорії.
+     *
+     * Без фільтра: Головна > Каталог
+     * З категорією: Головна > Каталог > Комікси
+     *
+     * CATEGORIES.find() перетворює value ("comics") у зрозумілий лейбл ("Комікси").
+     * Якщо категорія невідома (ручне введення в URL) — показуємо raw value,
+     * бо краще показати щось, ніж мовчки ігнорувати.
+     */
+    const categoryLabel = activeFilters.category
+        ? (CATEGORIES.find((c) => c.value === activeFilters.category)?.label ??
+          activeFilters.category)
+        : null;
+
+    const breadcrumbs: BreadcrumbItem[] = [
+        { label: "Головна", to: "/" },
+        // Якщо є активна категорія — "Каталог" стає посиланням, інакше — поточна сторінка
+        ...(categoryLabel
+            ? [{ label: "Каталог", to: "/catalog" }, { label: categoryLabel }]
+            : [{ label: "Каталог" }]),
+    ];
+
     return (
         <>
             <section aria-labelledby="catalog-heading" className="px-4 py-6 md:px-6">
+                {/* Breadcrumbs над заголовком — юзер бачить де він у структурі сайту */}
+                <div className="mb-4">
+                    <Breadcrumbs items={breadcrumbs} />
+                </div>
+
                 <header className="mb-4">
                     <h1
                         id="catalog-heading"
