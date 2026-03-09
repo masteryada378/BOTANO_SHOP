@@ -19,6 +19,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Heart, ImageOff, ShoppingCart } from "lucide-react";
+import { Breadcrumbs } from "../components/Breadcrumbs";
 import { fetchCardById } from "../services/cardService";
 import { useAppContext } from "../context/AppContext";
 import type { Card } from "../types/Card";
@@ -104,6 +105,12 @@ export const ProductDetail = () => {
     if (isLoading) {
         return (
             <main className="mx-auto max-w-5xl px-4 py-8">
+                {/*
+                 * Скелетон breadcrumbs під час loading.
+                 * Займає місце реального компонента — запобігає layout shift (CLS),
+                 * коли контент з'являється і все "стрибає" вниз.
+                 */}
+                <div className="mb-6 h-4 w-48 animate-pulse rounded bg-gray-800" />
                 <ProductDetailSkeleton />
             </main>
         );
@@ -140,6 +147,21 @@ export const ProductDetail = () => {
     // ── Render ───────────────────────────────────────────────────────────────
     return (
         <main className="mx-auto max-w-5xl px-4 py-8">
+            {/*
+             * Breadcrumbs: Головна > Каталог > Назва товару.
+             * Рендеримо після завантаження — маємо product.title для останньої крихти.
+             * mb-6 — відступ від breadcrumbs до основного контенту.
+             */}
+            <div className="mb-6">
+                <Breadcrumbs
+                    items={[
+                        { label: "Головна", to: "/" },
+                        { label: "Каталог", to: "/catalog" },
+                        { label: product.title },
+                    ]}
+                />
+            </div>
+
             {/*
              * <article> — семантичний контейнер одного товару (SEO + a11y).
              * grid gap-8 md:grid-cols-2 — stack на мобілці, 2 колонки на desktop.

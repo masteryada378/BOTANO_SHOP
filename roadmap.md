@@ -31,8 +31,8 @@
 - **SOLID:** кожен модуль має одну відповідальність, мінімум залежностей між шарами.
 - **DRY:** спільні типи, UI-патерни, утиліти й API-клієнт без копіпасту.
 - **Clean Architecture (прагматично):**
-    - Backend: `routes -> controllers -> services -> models`.
-    - Frontend: `pages/features/components/services/types`.
+  - Backend: `routes -> controllers -> services -> models`.
+  - Frontend: `pages/features/components/services/types`.
 - **TypeScript strict:** без `any`; DTO/response/request типізовані.
 - **Mobile-first:** Bottom Navigation, drawer для фільтрів, flex/grid, мінімум absolute/fixed.
 
@@ -43,65 +43,65 @@
 1. Глобальні компоненти (Layout)
 
 - Header (Верхня панель):
-    - Логотип магазину (посилання на головну).
-    - Рядок пошуку (Search Bar) — обов'язково з "живими" підказками.
-    - Іконка кошика з індикатором кількості товарів (Badge).
-    - Кнопка меню (Hamburger menu) або іконка профілю.
+  - Логотип магазину (посилання на головну).
+  - Рядок пошуку (Search Bar) — обов'язково з "живими" підказками.
+  - Іконка кошика з індикатором кількості товарів (Badge).
+  - Кнопка меню (Hamburger menu) або іконка профілю.
 - Bottom Navigation (Нижня панель — must-have для Mobile):
-    - Головна | Каталог | Кошик | Вибране (Wishlist) | Профіль.
+  - Головна | Каталог | Кошик | Вибране (Wishlist) | Профіль.
 - Footer (Підвал):
-    - Посилання на соцмережі, контакти, умови повернення та FAQ.
+  - Посилання на соцмережі, контакти, умови повернення та FAQ.
 
-2. Home Page (Головна сторінка)
+1. Home Page (Головна сторінка)
 
 - Hero Section: Динамічний банер (Slider) з акційними товарами (наприклад, нові фігурки Funko Pop або лімітовані комікси).
 - Categories: Горизонтальний список категорій у вигляді іконок або карток (Marvel, Star Wars, DC тощо).
 - Featured/Top Sellers: Сітка товарів (Grid) з основними картками:
-    - Зображення, назва, ціна, кнопка "Додати в кошик" (Quick add).
+  - Зображення, назва, ціна, кнопка "Додати в кошик" (Quick add).
 - Newsletter: Блок підписки на новини "для своїх".
 
-3. Products Page (Каталог)
+1. Products Page (Каталог)
 
 - Хлібні крихти (Breadcrumbs): Навігаційний шлях (напр: Головна > Комікси > Marvel).
 - Toolbar (Панель інструментів):
-    - Кількість знайдених результатів.
-    - Кнопка "Сортування" (ціна, популярність, новизна).
-    - Кнопка "Фільтри" (у мобільній версії це має бути висувна панель або модальне вікно).
+  - Кількість знайдених результатів.
+  - Кнопка "Сортування" (ціна, популярність, новизна).
+  - Кнопка "Фільтри" (у мобільній версії це має бути висувна панель або модальне вікно).
 - Sidebar (або Filter Drawer):
-    - Фільтрація за ціною (Range Slider).
-    - Фільтр за брендом/всесвітом.
-    - Фільтр за наявністю.
+  - Фільтрація за ціною (Range Slider).
+  - Фільтр за брендом/всесвітом.
+  - Фільтр за наявністю.
 - Product Grid: Нескінченний скрол (Infinite scroll) або пагінація.
 
-4. Product Detail Page (Сторінка товару)
+1. Product Detail Page (Сторінка товару)
 
 - Image Gallery: Слайдер із зображеннями товару з можливістю збільшення (Zoom).
 - Product Info:
-    - Назва товару та бренд.
-    - Ціна (та стара ціна, якщо є знижка).
-    - Статус наявності (В наявності / Під замовлення).
+  - Назва товару та бренд.
+  - Ціна (та стара ціна, якщо є знижка).
+  - Статус наявності (В наявності / Під замовлення).
 - Product Configuration: Вибір атрибутів (розмір футболки, версія видання).
 - Action Buttons: Кнопки "Купити" та "Додати в список бажаного".
 - Descriptions & Tabs: Опис товару, характеристики, відгуки користувачів.
 
-5. Admin (Адмін-панель)
+1. Admin (Адмін-панель)
 
 - Каталог товарів: Додавання/редагування товарів, описів, цін, фотографій, категорій та характеристик.
 
-6. Cart & Checkout (Кошик та Оформлення)
+1. Cart & Checkout (Кошик та Оформлення)
 
 - Cart Page:
-    - Список доданих товарів з можливістю зміни кількості (+/-).
-    - Видалення товару.
-    - Промокод (input).
-    - Загальна сума (Subtotal).
+  - Список доданих товарів з можливістю зміни кількості (+/-).
+  - Видалення товару.
+  - Промокод (input).
+  - Загальна сума (Subtotal).
 - Checkout Flow:
-    - Контактні дані (ім'я, телефон).
-    - Вибір способу доставки (Нова Пошта, кур'єр).
-    - Вибір способу оплати.
-    - Підсумок замовлення (Order Summary).
+  - Контактні дані (ім'я, телефон).
+  - Вибір способу доставки (Нова Пошта, кур'єр).
+  - Вибір способу оплати.
+  - Підсумок замовлення (Order Summary).
 
-7. User Profile (Кабінет користувача)
+1. User Profile (Кабінет користувача)
 
 ## 4) Етапи реалізації + Definition of Done
 
@@ -195,14 +195,14 @@
 
 ## 5) MVP чеклист (must-have)
 
-- [x] Layout: Header + BottomNav + Footer
-- [ ] Catalog з mobile filters + sorting
-- [ ] Product Detail
-- [ ] Cart
-- [ ] Checkout
-- [ ] Auth (Login/Register)
-- [ ] Profile (мінімум: історія замовлень)
-- [ ] Admin CRUD товарів
+- Layout: Header + BottomNav + Footer
+- Catalog з mobile filters + sorting
+- Product Detail
+- Cart
+- Checkout
+- Auth (Login/Register)
+- Profile (мінімум: історія замовлень)
+- Admin CRUD товарів
 
 ---
 
@@ -218,41 +218,41 @@
 
 ### Блок B — Layout
 
-6. Додати `BottomNavigation` компонент (mobile-first).
-7. Підключити `BottomNavigation` у `Layout`.
-8. Переробити cart badge у Header на дані з `AppContext`.
-9. Додати базу для live-search (стан + debounce hook).
-10. Підключити live suggestions dropdown до Header.
+1. Додати `BottomNavigation` компонент (mobile-first).
+2. Підключити `BottomNavigation` у `Layout`.
+3. Переробити cart badge у Header на дані з `AppContext`.
+4. Додати базу для live-search (стан + debounce hook).
+5. Підключити live suggestions dropdown до Header.
 
 ### Блок C — Catalog & Product
 
-11. Створити сторінку `Catalog`.
-12. Додати toolbar (count/sort/filter trigger).
-13. Додати mobile filter drawer.
-14. Додати маршрут `product/:id` і сторінку `ProductDetail`.
-15. Підключити breadcrumbs для catalog/product.
+1. Створити сторінку `Catalog`.
+2. Додати toolbar (count/sort/filter trigger).
+3. Додати mobile filter drawer.
+4. Додати маршрут `product/:id` і сторінку `ProductDetail`.
+5. Підключити breadcrumbs для catalog/product.
 
 ### Блок D — Cart & Checkout
 
-16. Розширити модель кошика (`id + quantity + price snapshot`).
-17. Реалізувати сторінку `Cart`.
-18. Реалізувати сторінку `Checkout` з валідацією.
-19. Додати persist кошика в `localStorage`.
+1. Розширити модель кошика (`id + quantity + price snapshot`).
+2. Реалізувати сторінку `Cart`.
+3. Реалізувати сторінку `Checkout` з валідацією.
+4. Додати persist кошика в `localStorage`.
 
 ### Блок E — Auth/Profile/Admin
 
-20. Додати `Login/Register` сторінки.
-21. Додати `AuthContext` + protected routes.
-22. Додати `Profile` + `OrderHistory`.
-23. Додати backend модулі `auth/orders`.
-24. Додати admin CRUD для товарів.
+1. Додати `Login/Register` сторінки.
+2. Додати `AuthContext` + protected routes.
+3. Додати `Profile` + `OrderHistory`.
+4. Додати backend модулі `auth/orders`.
+5. Додати admin CRUD для товарів.
 
 ### Блок F — Quality
 
-25. Рефактор backend у `controllers/services/models`.
-26. Прибрати `any` у backend API.
-27. Додати централізований `errorHandler`.
-28. Додати базові тести критичних flow.
+1. Рефактор backend у `controllers/services/models`.
+2. Прибрати `any` у backend API.
+3. Додати централізований `errorHandler`.
+4. Додати базові тести критичних flow.
 
 ---
 
@@ -337,6 +337,7 @@
 Третій крок Блоку C. Каталог вже має grid, toolbar із сортуванням і кнопку "Фільтри" (тригер з Task #12). Тепер потрібно створити **сам drawer** — висувну панель з фільтрами, яка відкривається при натисканні цієї кнопки.
 
 Після цього таску залишиться:
+
 - Task #14: маршрут `product/:id` і сторінка `ProductDetail`.
 - Task #15: breadcrumbs для catalog/product.
 
@@ -367,9 +368,6 @@
 
 - **Файл:** `backend/src/database.ts` або SQL-міграція (окремий файл `backend/src/migrations/` або inline в `database.ts`).
 - Додай колонку `category` до таблиці `cards`:
-    ```sql
-    ALTER TABLE cards ADD COLUMN category VARCHAR(100) DEFAULT NULL;
-    ```
 - **Чому `DEFAULT NULL`?** Існуючі товари не мають категорії — вони мають працювати без помилок. NULL означає "без категорії".
 - **Варіант реалізації:** можна додати auto-migration при старті сервера (перевірка через `SHOW COLUMNS FROM cards LIKE 'category'` і виконання ALTER якщо колонки немає). Або виконати SQL вручну один раз через Docker exec.
 - **Рекомендація:** Зроби простий migration-script або додай перевірку в `database.ts` при підключенні. Для навчального проєкту auto-migration при старті — прийнятний підхід.
@@ -380,56 +378,13 @@
 - Додай `category?: string | null` до інтерфейсу `Card`.
 - **Файл:** `frontend/src/types/catalog.ts` (update).
 - Додай тип фільтрів:
-    ```ts
-    export interface CatalogFilters {
-      min_price?: string;
-      max_price?: string;
-      category?: string;
-    }
-    ```
 - Додай масив категорій (поки хардкод, пізніше можна тягнути з API):
-    ```ts
-    export const CATEGORIES = [
-      { value: "comics", label: "Комікси" },
-      { value: "figures", label: "Фігурки" },
-      { value: "gadgets", label: "Девайси" },
-      { value: "clothing", label: "Одяг" },
-      { value: "accessories", label: "Аксесуари" },
-    ] as const;
-    ```
 
 ### Крок 3 — Розширити backend: підтримка фільтрів у `GET /cards`
 
 - **Файл:** `backend/src/routes/cards.ts` (update).
 - Додай підтримку query-параметрів `?min_price=`, `?max_price=`, `?category=` до існуючого `GET /cards`.
 - **Логіка побудови WHERE:** Динамічно додавай умови до масиву `conditions` та `params`:
-    ```ts
-    const conditions: string[] = [];
-    const params: (string | number)[] = [];
-
-    if (q) {
-      conditions.push("title LIKE ?");
-      params.push(`%${q}%`);
-    }
-    if (min_price) {
-      conditions.push("price >= ?");
-      params.push(Number(min_price));
-    }
-    if (max_price) {
-      conditions.push("price <= ?");
-      params.push(Number(max_price));
-    }
-    if (category) {
-      conditions.push("category = ?");
-      params.push(category);
-    }
-
-    let sql = "SELECT * FROM cards";
-    if (conditions.length > 0) {
-      sql += " WHERE " + conditions.join(" AND ");
-    }
-    sql += ` ORDER BY ${orderBy}`;
-    ```
 - **Валідація `min_price`/`max_price`:** перевіряй що це числа (`isNaN(Number(val))` → ігноруй). Не підставляй сирий string у числове порівняння.
 - **Сумісність:** фільтри працюють разом з `?q=` і `?sort=`. Наприклад: `?q=marvel&sort=price_asc&min_price=100&category=comics`.
 
@@ -437,57 +392,31 @@
 
 - **Файл:** `frontend/src/services/cardService.ts` (update).
 - Оновити `fetchCards()` — прийняти об'єкт параметрів замість окремого `sort`:
-    ```ts
-    interface FetchCardsParams {
-      sort?: SortOption;
-      min_price?: string;
-      max_price?: string;
-      category?: string;
-    }
-
-    export const fetchCards = (params?: FetchCardsParams): Promise<Card[]> => {
-      const searchParams = new URLSearchParams();
-      if (params?.sort) searchParams.set("sort", params.sort);
-      if (params?.min_price) searchParams.set("min_price", params.min_price);
-      if (params?.max_price) searchParams.set("max_price", params.max_price);
-      if (params?.category) searchParams.set("category", params.category);
-      const qs = searchParams.toString();
-      return apiGet<Card[]>(qs ? `${RESOURCE}?${qs}` : RESOURCE);
-    };
-    ```
 - **Чому об'єкт?** З ростом кількості параметрів окремі аргументи стають некерованими. Об'єкт масштабується краще і читається зрозуміліше.
 
 ### Крок 5 — Створити компонент `FilterDrawer`
 
 - **Файл:** `frontend/src/components/FilterDrawer.tsx` (create).
 - **Props:**
-    ```ts
-    interface FilterDrawerProps {
-      isOpen: boolean;
-      onClose: () => void;
-      currentFilters: CatalogFilters;
-      onApply: (filters: CatalogFilters) => void;
-    }
-    ```
 - **UI-структура (mobile-first):**
-    1. **Overlay:** напівпрозорий фон за drawer (`bg-black/50`), клік по ньому закриває drawer.
-    2. **Drawer панель:** з'їжджає справа (`translate-x` анімація через Tailwind `transition-transform`), `w-80 max-w-[85vw]`, `bg-gray-900`, `h-full`, `overflow-y-auto`.
-    3. **Header drawer:** "Фільтри" + кнопка закриття (іконка `X` з `lucide-react`).
-    4. **Секція "Ціна":**
-        - Два input-поля: "Від" (min) і "До" (max).
-        - `type="number"`, `min="0"`, `placeholder="0"` / `placeholder="99999"`.
-        - Стилі input: `bg-gray-800 border-gray-700 rounded-lg text-white`.
-    5. **Секція "Категорія":**
-        - Список чекбоксів або radio-кнопок з масиву `CATEGORIES`.
-        - Поки **одна категорія** (radio), бо backend фільтрує по `category = ?`, а не `IN (...)`.
-    6. **Footer drawer (sticky внизу):**
-        - Кнопка "Застосувати" (`bg-violet-600 hover:bg-violet-700`, `w-full`).
-        - Кнопка "Скинути" (`text-gray-400 hover:text-white`, під "Застосувати").
+  1. **Overlay:** напівпрозорий фон за drawer (`bg-black/50`), клік по ньому закриває drawer.
+  2. **Drawer панель:** з'їжджає справа (`translate-x` анімація через Tailwind `transition-transform`), `w-80 max-w-[85vw]`, `bg-gray-900`, `h-full`, `overflow-y-auto`.
+  3. **Header drawer:** "Фільтри" + кнопка закриття (іконка `X` з `lucide-react`).
+  4. **Секція "Ціна":**
+    - Два input-поля: "Від" (min) і "До" (max).
+    - `type="number"`, `min="0"`, `placeholder="0"` / `placeholder="99999"`.
+    - Стилі input: `bg-gray-800 border-gray-700 rounded-lg text-white`.
+  5. **Секція "Категорія":**
+    - Список чекбоксів або radio-кнопок з масиву `CATEGORIES`.
+    - Поки **одна категорія** (radio), бо backend фільтрує по `category = ?`, а не `IN (...)`.
+  6. **Footer drawer (sticky внизу):**
+    - Кнопка "Застосувати" (`bg-violet-600 hover:bg-violet-700`, `w-full`).
+    - Кнопка "Скинути" (`text-gray-400 hover:text-white`, під "Застосувати").
 - **Поведінка:**
-    - Drawer має **локальний стан** фільтрів (не оновлює URL при кожній зміні input). Тільки при натисканні "Застосувати" — викликається `onApply(localFilters)`.
-    - "Скинути" — очищає локальний стан і викликає `onApply({})`.
-    - `Escape` закриває drawer.
-    - **Focus trap** бажаний, але не обов'язковий зараз.
+  - Drawer має **локальний стан** фільтрів (не оновлює URL при кожній зміні input). Тільки при натисканні "Застосувати" — викликається `onApply(localFilters)`.
+  - "Скинути" — очищає локальний стан і викликає `onApply({})`.
+  - `Escape` закриває drawer.
+  - **Focus trap** бажаний, але не обов'язковий зараз.
 - **Анімація:** `transition-transform duration-300 ease-in-out`. Коли `isOpen` — `translate-x-0`, інакше `translate-x-full`.
 - **Body scroll lock:** коли drawer відкритий, бажано заблокувати скрол body (`overflow-hidden` на `<body>`). Використай `useEffect` в drawer або в `CatalogPage`.
 
@@ -496,60 +425,51 @@
 - **Файл:** `frontend/src/pages/Catalog.tsx` (update).
 - **Стан:** `const [isFilterOpen, setIsFilterOpen] = useState(false);`
 - **URL-синхронізація фільтрів:**
-    - Зчитати фільтри з URL: `searchParams.get("min_price")`, `searchParams.get("max_price")`, `searchParams.get("category")`.
-    - При `onApply` — оновити `searchParams` (зберігаючи існуючий `sort`):
-        ```ts
-        const handleFilterApply = (filters: CatalogFilters) => {
-          const newParams = new URLSearchParams();
-          if (currentSort !== "newest") newParams.set("sort", currentSort);
-          if (filters.min_price) newParams.set("min_price", filters.min_price);
-          if (filters.max_price) newParams.set("max_price", filters.max_price);
-          if (filters.category) newParams.set("category", filters.category);
-          setSearchParams(newParams);
-          setIsFilterOpen(false);
-        };
-        ```
+  - Зчитати фільтри з URL: `searchParams.get("min_price")`, `searchParams.get("max_price")`, `searchParams.get("category")`.
+  - При `onApply` — оновити `searchParams` (зберігаючи існуючий `sort`):
 - **Передай фільтри у `fetchCards()`:**
-    - `useEffect` залежить від `currentSort`, `min_price`, `max_price`, `category`.
-    - `fetchCards({ sort: currentSort, min_price, max_price, category })`.
+  - `useEffect` залежить від `currentSort`, `min_price`, `max_price`, `category`.
+  - `fetchCards({ sort: currentSort, min_price, max_price, category })`.
 - **Підключи тригер:** замінити `console.log` у `onFilterClick` на `setIsFilterOpen(true)`.
 - **Рендер `FilterDrawer`:** додати в JSX `CatalogPage`.
 - **Активні фільтри badge:** опціонально — показати кількість активних фільтрів біля кнопки "Фільтри" у toolbar (наприклад, `Фільтри (2)`). Реалізуй через підрахунок непустих значень у фільтрах.
 
 **Файли для створення/змін:**
 
-| Файл | Дія |
-|------|-----|
+
+| Файл                                       | Дія        |
+| ------------------------------------------ | ---------- |
 | `frontend/src/components/FilterDrawer.tsx` | **create** |
-| `frontend/src/types/catalog.ts` | update |
-| `frontend/src/types/Card.ts` | update |
-| `backend/src/routes/cards.ts` | update |
-| `frontend/src/services/cardService.ts` | update |
-| `frontend/src/pages/Catalog.tsx` | update |
-| `backend/src/database.ts` (або migration) | update |
+| `frontend/src/types/catalog.ts`            | update     |
+| `frontend/src/types/Card.ts`               | update     |
+| `backend/src/routes/cards.ts`              | update     |
+| `frontend/src/services/cardService.ts`     | update     |
+| `frontend/src/pages/Catalog.tsx`           | update     |
+| `backend/src/database.ts` (або migration)  | update     |
+
 
 **Критерії приймання:**
 
-- [ ] `GET /cards?min_price=100&max_price=500` повертає товари в діапазоні цін.
-- [ ] `GET /cards?category=comics` повертає товари з категорією "comics".
-- [ ] Фільтри працюють разом з `?q=` та `?sort=`.
-- [ ] Невалідні значення `min_price`/`max_price` (наприклад, "abc") ігноруються без помилки.
-- [ ] Кнопка "Фільтри" у toolbar відкриває drawer справа.
-- [ ] Drawer має overlay, анімацію появи, кнопку закриття і Escape.
-- [ ] Секція "Ціна": два input (від/до) типу number.
-- [ ] Секція "Категорія": radio-кнопки з `CATEGORIES`.
-- [ ] "Застосувати" закриває drawer, оновлює URL і перезавантажує товари.
-- [ ] "Скинути" очищає фільтри, оновлює URL і перезавантажує товари.
-- [ ] При F5 з `?min_price=100&category=comics` — фільтри відновлюються у drawer.
-- [ ] Фільтри зберігають `sort` в URL (не скидають сортування).
-- [ ] Body scroll заблокований коли drawer відкритий.
-- [ ] Таблиця `cards` має колонку `category` (VARCHAR, nullable).
-- [ ] `Card` тип оновлений: `category?: string | null`.
-- [ ] Немає `any`, TypeScript strict.
+- `GET /cards?min_price=100&max_price=500` повертає товари в діапазоні цін.
+- `GET /cards?category=comics` повертає товари з категорією "comics".
+- Фільтри працюють разом з `?q=` та `?sort=`.
+- Невалідні значення `min_price`/`max_price` (наприклад, "abc") ігноруються без помилки.
+- Кнопка "Фільтри" у toolbar відкриває drawer справа.
+- Drawer має overlay, анімацію появи, кнопку закриття і Escape.
+- Секція "Ціна": два input (від/до) типу number.
+- Секція "Категорія": radio-кнопки з `CATEGORIES`.
+- "Застосувати" закриває drawer, оновлює URL і перезавантажує товари.
+- "Скинути" очищає фільтри, оновлює URL і перезавантажує товари.
+- При F5 з `?min_price=100&category=comics` — фільтри відновлюються у drawer.
+- Фільтри зберігають `sort` в URL (не скидають сортування).
+- Body scroll заблокований коли drawer відкритий.
+- Таблиця `cards` має колонку `category` (VARCHAR, nullable).
+- `Card` тип оновлений: `category?: string | null`.
+- Немає `any`, TypeScript strict.
 
 ---
 
-## 21) Task #14 — Сторінка товару (Product Detail Page)
+## 21) Task #14 ✅ — Сторінка товару (Product Detail Page)
 
 **Назва:** Створити маршрут `product/:id` і сторінку `ProductDetail`
 
@@ -558,12 +478,13 @@
 Четвертий крок Блоку C. Каталог показує товари у grid і дозволяє їх сортувати/фільтрувати. Але при натисканні на картку товару — нікуди не веде. Потрібна **окрема сторінка товару**, де юзер бачить повну інформацію, галерею зображень, ціну, опис і може додати товар у кошик.
 
 Після цього таску залишиться:
+
 - Task #15: breadcrumbs для catalog/product (останній крок Блоку C).
 
 **Логіка (чому це робимо):**
 
 - **Product Detail Page (PDP)** — ключова сторінка e-commerce. Саме тут юзер приймає рішення "купувати чи ні". Без PDP магазин — просто список карток без контексту.
-- **Backend `GET /cards/:id`** — зараз є PUT і DELETE для `:id`, але немає GET. Потрібен окремий endpoint для отримання одного товару.
+- **Backend `GET /cards/:id**` — зараз є PUT і DELETE для `:id`, але немає GET. Потрібен окремий endpoint для отримання одного товару.
 - **Розширення моделі** — для повноцінного PDP потрібно більше полів: `description`, `brand`, `old_price` (для знижок), `in_stock`. Додаємо їх до таблиці `cards`.
 - **Image Gallery** — поки товар має одне `image`. Повноцінна галерея з кількома зображеннями — це окремий таск (зв'язок many-to-one з окремою таблицею). Зараз зробимо простий варіант з одним зображенням і placeholder для галереї.
 - **SEO:** Сторінка товару — найважливіша для SEO. Правильний `<title>`, мета-теги, семантичні заголовки.
@@ -585,12 +506,6 @@
 ### Крок 1 — Розширити схему БД
 
 - Додати колонки до `cards`:
-    ```sql
-    ALTER TABLE cards ADD COLUMN description TEXT DEFAULT NULL;
-    ALTER TABLE cards ADD COLUMN brand VARCHAR(100) DEFAULT NULL;
-    ALTER TABLE cards ADD COLUMN old_price DECIMAL(10,2) DEFAULT NULL;
-    ALTER TABLE cards ADD COLUMN in_stock BOOLEAN DEFAULT TRUE;
-    ```
 - **Чому окремі ALTER?** Якщо якась колонка вже існує (наприклад, `category` з Task #13), окремі запити дозволяють обробити помилку для однієї колонки без блокування інших.
 - Оновити auto-migration логіку (якщо створена в Task #13) або виконати вручну.
 
@@ -598,35 +513,11 @@
 
 - **Файл:** `frontend/src/types/Card.ts` (update).
 - Додати поля:
-    ```ts
-    export interface Card {
-      id: number;
-      title: string;
-      price: number;
-      image?: string;
-      category?: string | null;
-      description?: string | null;
-      brand?: string | null;
-      old_price?: number | null;
-      in_stock?: boolean;
-    }
-    ```
 
 ### Крок 3 — Додати backend endpoint `GET /cards/:id`
 
 - **Файл:** `backend/src/routes/cards.ts` (update).
 - Додай новий route **перед** `PUT /cards/:id`:
-    ```ts
-    router.get("/:id", async (req, res) => {
-      const { id } = req.params;
-      const [rows] = await pool.query("SELECT * FROM cards WHERE id = ?", [id]);
-      const cards = rows as Card[];
-      if (cards.length === 0) {
-        return res.status(404).json({ message: "Товар не знайдено" });
-      }
-      res.json(cards[0]);
-    });
-    ```
 - **Чому 404?** Якщо товару з таким id не існує — правильна HTTP-семантика. Frontend може показати "Товар не знайдено" замість порожньої сторінки.
 - **Типізація:** Створи серверний тип `Card` або використай `RowDataPacket` з mysql2. Уникай `any`.
 
@@ -634,37 +525,33 @@
 
 - **Файл:** `frontend/src/services/cardService.ts` (update).
 - Додай функцію:
-    ```ts
-    export const fetchCardById = (id: string | number): Promise<Card> =>
-      apiGet<Card>(`${RESOURCE}/${id}`);
-    ```
 
 ### Крок 5 — Створити сторінку `ProductDetail`
 
 - **Файл:** `frontend/src/pages/ProductDetail.tsx` (create).
 - **Структура:**
-    1. **Завантаження:** використай `useParams<{ id: string }>()` з react-router-dom.
-    2. **Стан:** `product`, `isLoading`, `error`.
-    3. **`useEffect`:** при зміні `id` — `fetchCardById(id)`.
-    4. **Layout (mobile-first, вертикальний):**
-        - **Зображення** (top): `aspect-square`, `rounded-xl`, `bg-gray-800` з placeholder якщо `image` відсутній. `object-cover`. На desktop — зображення зліва, інфо справа (grid `md:grid-cols-2`).
-        - **Product Info (під зображенням):**
-            - Бренд: `text-sm text-violet-400 uppercase tracking-wider`.
-            - Назва: `text-2xl font-bold text-white`.
-            - Ціна: `text-3xl font-bold text-emerald-400` (використай `JetBrains Mono` якщо підключено).
-            - Стара ціна (якщо є `old_price`): перекреслена `line-through text-gray-500` поруч з основною.
-            - Знижка badge: якщо `old_price` > `price` — показати `"-{відсоток}%"` badge (`bg-red-500 text-white rounded-full px-2 py-0.5 text-xs`).
-            - Статус наявності: `in_stock ? "В наявності" : "Немає в наявності"`. Зелений/червоний відповідно.
-        - **Action Buttons:**
-            - "Додати в кошик" — `bg-violet-600 hover:bg-violet-700 w-full py-3 rounded-xl text-lg font-semibold`. Використовує `addToCart` з `AppContext`. Якщо `!in_stock` — кнопка `disabled`, `opacity-50`.
-            - "В обране" — іконка `Heart` з `lucide-react`, secondary стиль. `onClick={() => console.log("TODO: wishlist")}`.
-        - **Опис:** `text-gray-300`, якщо є `description`. Якщо немає — не рендерити секцію.
-    5. **Loading state:** скелетони для зображення та тексту (аналогічно `CatalogPage`).
-    6. **Error state:** "Товар не знайдено" з кнопкою "Повернутися до каталогу" (Link на `/catalog`).
+  1. **Завантаження:** використай `useParams<{ id: string }>()` з react-router-dom.
+  2. **Стан:** `product`, `isLoading`, `error`.
+  3. *`*useEffect`:** при зміні `id` — `fetchCardById(id)`.
+  4. **Layout (mobile-first, вертикальний):**
+    - **Зображення** (top): `aspect-square`, `rounded-xl`, `bg-gray-800` з placeholder якщо `image` відсутній. `object-cover`. На desktop — зображення зліва, інфо справа (grid `md:grid-cols-2`).
+    - **Product Info (під зображенням):**
+      - Бренд: `text-sm text-violet-400 uppercase tracking-wider`.
+      - Назва: `text-2xl font-bold text-white`.
+      - Ціна: `text-3xl font-bold text-emerald-400` (використай `JetBrains Mono` якщо підключено).
+      - Стара ціна (якщо є `old_price`): перекреслена `line-through text-gray-500` поруч з основною.
+      - Знижка badge: якщо `old_price` > `price` — показати `"-{відсоток}%"` badge (`bg-red-500 text-white rounded-full px-2 py-0.5 text-xs`).
+      - Статус наявності: `in_stock ? "В наявності" : "Немає в наявності"`. Зелений/червоний відповідно.
+    - **Action Buttons:**
+      - "Додати в кошик" — `bg-violet-600 hover:bg-violet-700 w-full py-3 rounded-xl text-lg font-semibold`. Використовує `addToCart` з `AppContext`. Якщо `!in_stock` — кнопка `disabled`, `opacity-50`.
+      - "В обране" — іконка `Heart` з `lucide-react`, secondary стиль. `onClick={() => console.log("TODO: wishlist")}`.
+    - **Опис:** `text-gray-300`, якщо є `description`. Якщо немає — не рендерити секцію.
+  5. **Loading state:** скелетони для зображення та тексту (аналогічно `CatalogPage`).
+  6. **Error state:** "Товар не знайдено" з кнопкою "Повернутися до каталогу" (Link на `/catalog`).
 - **Семантика (SEO):**
-    - `<article>` для контейнера товару.
-    - `<h1>` для назви товару.
-    - `<img alt={product.title}>`.
+  - `<article>` для контейнера товару.
+  - `<h1>` для назви товару.
+  - `<img alt={product.title}>`.
 
 ### Крок 6 — Додати маршрут і зв'язати навігацію
 
@@ -677,39 +564,45 @@
 
 **Файли для створення/змін:**
 
-| Файл | Дія |
-|------|-----|
-| `frontend/src/pages/ProductDetail.tsx` | **create** |
-| `frontend/src/types/Card.ts` | update |
-| `backend/src/routes/cards.ts` | update |
-| `frontend/src/services/cardService.ts` | update |
-| `frontend/src/routes/AppRoutes.tsx` | update |
-| `frontend/src/components/CatalogCard.tsx` | update |
-| `frontend/src/components/SearchSuggestions.tsx` | update |
-| `backend/src/database.ts` (або migration) | update |
+
+| Файл                                            | Дія        |
+| ----------------------------------------------- | ---------- |
+| `frontend/src/pages/ProductDetail.tsx`          | **create** |
+| `frontend/src/types/Card.ts`                    | update     |
+| `backend/src/routes/cards.ts`                   | update     |
+| `frontend/src/services/cardService.ts`          | update     |
+| `frontend/src/routes/AppRoutes.tsx`             | update     |
+| `frontend/src/components/CatalogCard.tsx`       | update     |
+| `frontend/src/components/SearchSuggestions.tsx` | update     |
+| `backend/src/database.ts` (або migration)       | update     |
+
 
 **Критерії приймання:**
 
-- [ ] `GET /cards/1` повертає один товар з усіма полями (включно з `description`, `brand`, `old_price`, `in_stock`).
-- [ ] `GET /cards/99999` повертає 404 з повідомленням.
-- [ ] Маршрут `/product/:id` працює, сторінка рендериться.
-- [ ] Зображення товару відображається (або placeholder при відсутності).
-- [ ] Назва, бренд, ціна, стара ціна, знижка badge, статус наявності — відображаються коректно.
-- [ ] Кнопка "Додати в кошик" додає товар у `AppContext.cart`. Disabled якщо `!in_stock`.
-- [ ] Кнопка "В обране" присутня (функціональність — `console.log` поки).
-- [ ] Опис товару відображається, якщо є.
-- [ ] Клік по `CatalogCard` веде на `/product/:id`. Кнопка "В кошик" на картці **не** тригерить навігацію.
-- [ ] Клік по suggestion у пошуку веде на `/product/:id`.
-- [ ] Loading стан: скелетони при завантаженні.
-- [ ] Error стан: "Товар не знайдено" з посиланням на каталог.
-- [ ] Mobile-first: вертикальний layout на мобілці, 2 колонки на desktop (md+).
-- [ ] Семантичний HTML: `<article>`, `<h1>`, `alt` на зображенні.
-- [ ] Таблиця `cards` має нові колонки: `description`, `brand`, `old_price`, `in_stock`.
-- [ ] Немає `any`, TypeScript strict.
+- `GET /cards/1` повертає один товар з усіма полями (включно з `description`, `brand`, `old_price`, `in_stock`).
+- `GET /cards/99999` повертає 404 з повідомленням.
+- Маршрут `/product/:id` працює, сторінка рендериться.
+- Зображення товару відображається (або placeholder при відсутності).
+- Назва, бренд, ціна, стара ціна, знижка badge, статус наявності — відображаються коректно.
+- Кнопка "Додати в кошик" додає товар у `AppContext.cart`. Disabled якщо `!in_stock`.
+- Кнопка "В обране" присутня (функціональність — `console.log` поки).
+- Опис товару відображається, якщо є.
+- Клік по `CatalogCard` веде на `/product/:id`. Кнопка "В кошик" на картці **не** тригерить навігацію.
+- Клік по suggestion у пошуку веде на `/product/:id`.
+- Loading стан: скелетони при завантаженні.
+- Error стан: "Товар не знайдено" з посиланням на каталог.
+- Mobile-first: вертикальний layout на мобілці, 2 колонки на desktop (md+).
+- Семантичний HTML: `<article>`, `<h1>`, `alt` на зображенні.
+- Таблиця `cards` має нові колонки: `description`, `brand`, `old_price`, `in_stock`.
+- Немає `any`, TypeScript strict.
 
 ---
 
-## 22) Task #15 — Breadcrumbs для каталогу та сторінки товару
+## 22) Task #15 ✅ — Breadcrumbs для каталогу та сторінки товару
+
+Виконано. Створено `BreadcrumbItem` тип у `catalog.ts`. Компонент `Breadcrumbs` (`<nav>` + `<ol>`, `ChevronRight`-роздільник, `aria-current="page"` на останній крихті, іконка Home для першого елемента, `truncate` для довгих назв). Підключено до `CatalogPage` (динамічна третя крихта при активній категорії) та `ProductDetail` (скелетон під час loading, breadcrumbs після завантаження). Блок C (Catalog & Product) повністю закрито.
+
+---
 
 **Назва:** Створити компонент `Breadcrumbs` і підключити до Catalog та ProductDetail
 
@@ -741,43 +634,12 @@
 
 - **Файл:** `frontend/src/types/catalog.ts` (update).
 - Додай:
-    ```ts
-    export interface BreadcrumbItem {
-      label: string;
-      to?: string;  // якщо є — це посилання; якщо ні — поточна сторінка (останній елемент)
-    }
-    ```
 
 ### Крок 2 — Створити компонент `Breadcrumbs`
 
 - **Файл:** `frontend/src/components/Breadcrumbs.tsx` (create).
 - **Props:**
-    ```ts
-    interface BreadcrumbsProps {
-      items: BreadcrumbItem[];
-    }
-    ```
 - **Структура:**
-    ```tsx
-    <nav aria-label="Навігаційний шлях">
-      <ol className="flex items-center gap-1.5 text-sm text-gray-400">
-        {items.map((item, index) => (
-          <li key={index} className="flex items-center gap-1.5">
-            {index > 0 && <ChevronRight size={14} />}
-            {item.to ? (
-              <Link to={item.to} className="hover:text-violet-400 transition-colors">
-                {item.label}
-              </Link>
-            ) : (
-              <span aria-current="page" className="text-gray-200 truncate max-w-[200px]">
-                {item.label}
-              </span>
-            )}
-          </li>
-        ))}
-      </ol>
-    </nav>
-    ```
 - **Роздільник:** `ChevronRight` з `lucide-react` (або символ `/`, `>`). Chevron — сучасніший вигляд.
 - **Останній елемент:** не є посиланням (поточна сторінка), має `aria-current="page"`, інший колір.
 - **Truncation:** назва товару може бути довгою — `truncate max-w-[200px]` на мобілці.
@@ -787,53 +649,37 @@
 
 - **Файл:** `frontend/src/pages/Catalog.tsx` (update).
 - Додай `Breadcrumbs` над toolbar:
-    ```tsx
-    <Breadcrumbs items={[
-      { label: "Головна", to: "/" },
-      { label: "Каталог" },
-    ]} />
-    ```
 - Якщо є активний фільтр за категорією — можна додати третю крихту:
-    ```tsx
-    { label: "Головна", to: "/" },
-    { label: "Каталог", to: "/catalog" },
-    { label: categoryLabel },  // тільки якщо обрана категорія
-    ```
 
 ### Крок 4 — Підключити `Breadcrumbs` до `ProductDetail`
 
 - **Файл:** `frontend/src/pages/ProductDetail.tsx` (update).
 - Додай `Breadcrumbs` над зображенням товару:
-    ```tsx
-    <Breadcrumbs items={[
-      { label: "Головна", to: "/" },
-      { label: "Каталог", to: "/catalog" },
-      { label: product.title },
-    ]} />
-    ```
 - **Важливо:** breadcrumbs рендеряться **тільки коли товар завантажений** (не під час loading). Або показати скелетон для breadcrumbs.
 
 **Файли для створення/змін:**
 
-| Файл | Дія |
-|------|-----|
+
+| Файл                                      | Дія        |
+| ----------------------------------------- | ---------- |
 | `frontend/src/components/Breadcrumbs.tsx` | **create** |
-| `frontend/src/types/catalog.ts` | update |
-| `frontend/src/pages/Catalog.tsx` | update |
-| `frontend/src/pages/ProductDetail.tsx` | update |
+| `frontend/src/types/catalog.ts`           | update     |
+| `frontend/src/pages/Catalog.tsx`          | update     |
+| `frontend/src/pages/ProductDetail.tsx`    | update     |
+
 
 **Критерії приймання:**
 
-- [ ] Компонент `Breadcrumbs` приймає масив `BreadcrumbItem[]` і рендерить ланцюжок посилань.
-- [ ] Роздільник між елементами — `ChevronRight` (або інша іконка/символ).
-- [ ] Останній елемент — не посилання, має `aria-current="page"`.
-- [ ] `CatalogPage`: breadcrumbs "Головна > Каталог" відображаються над toolbar.
-- [ ] `ProductDetail`: breadcrumbs "Головна > Каталог > Назва товару" відображаються над контентом.
-- [ ] Посилання в breadcrumbs працюють (навігація без перезавантаження сторінки).
-- [ ] Довга назва товару обрізається з `...` (truncate).
-- [ ] Семантична розмітка: `<nav aria-label="...">`, `<ol>`, `<li>`.
-- [ ] Mobile-first: компактний розмір тексту, gap між елементами.
-- [ ] Немає `any`, TypeScript strict.
+- Компонент `Breadcrumbs` приймає масив `BreadcrumbItem[]` і рендерить ланцюжок посилань.
+- Роздільник між елементами — `ChevronRight` (або інша іконка/символ).
+- Останній елемент — не посилання, має `aria-current="page"`.
+- `CatalogPage`: breadcrumbs "Головна > Каталог" відображаються над toolbar.
+- `ProductDetail`: breadcrumbs "Головна > Каталог > Назва товару" відображаються над контентом.
+- Посилання в breadcrumbs працюють (навігація без перезавантаження сторінки).
+- Довга назва товару обрізається з `...` (truncate).
+- Семантична розмітка: `<nav aria-label="...">`, `<ol>`, `<li>`.
+- Mobile-first: компактний розмір тексту, gap між елементами.
+- Немає `any`, TypeScript strict.
 
 ---
 
