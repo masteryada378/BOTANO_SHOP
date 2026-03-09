@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import type { ResultSetHeader } from "mysql2";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "../database";
 
 const router = Router();
@@ -104,6 +104,48 @@ router.get("/", async (req: Request, res: Response) => {
         res.json(rows);
     } catch (err) {
         console.error("DB error:", err);
+        res.status(500).json({ error: "Database error" });
+    }
+});
+
+/**
+ * GET /cards/:id — отримати один товар за його ID.
+ *
+ * Чому цей route стоїть перед PUT /:id та DELETE /:id?
+ * — Express перебирає маршрути зверху вниз. GET /:id має бути оголошений
+ *   раніше PUT і DELETE з тим самим параметром, щоб не конкурувати з ними.
+ *
+ * Чому 404, а не порожній масив?
+ * — HTTP-семантика: ресурс не знайдено = 404. Frontend може показати
+ *   зрозуміле повідомлення "Товар не знайдено" замість пустої сторінки.
+ *
+ * Чому RowDataPacket?
+ * — mysql2 повертає рядки як масив RowDataPacket. Явна типізація замість
+ *   unknown[] або any[] дає автодоповнення і ловить помилки на етапі збірки.
+ */
+router.get("/:id", async (req: Request<{ id: string }>, res: Response) => {
+    const cardId = parseInt(req.params.id, 10);
+
+    // Валідуємо ID до запиту в БД — уникаємо зайвого DB-round-trip
+    if (isNaN(cardId)) {
+        res.status(400).json({ message: "Невалідний ID товару" });
+        return;
+    }
+
+    try {
+        const [rows] = await pool.query<RowDataPacket[]>(
+            "SELECT * FROM cards WHERE id = ?",
+            [cardId],
+        );
+
+        if (rows.length === 0) {
+            res.status(404).json({ message: "Товар не знайдено" });
+            return;
+        }
+
+        res.json(rows[0]);
+    } catch (err) {
+        console.error("DB error (GET /cards/:id):", err);
         res.status(500).json({ error: "Database error" });
     }
 });

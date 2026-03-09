@@ -2,10 +2,10 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { Layout } from "../components/Layout";
 import HomePage from "../pages/Home";
 import { CatalogPage } from "../pages/Catalog";
+import { ProductDetail } from "../pages/ProductDetail";
 
 const router = createBrowserRouter([
     {
-        // path: '',
         path: "/",
         element: <Layout />,
         children: [
@@ -16,6 +16,15 @@ const router = createBrowserRouter([
             {
                 path: "catalog",
                 element: <CatalogPage />,
+            },
+            /**
+             * Маршрут сторінки товару.
+             * :id — динамічний сегмент, useParams<{ id: string }>() зчитує його у ProductDetail.
+             * Шлях /product/:id є стандартом e-commerce (SEO-friendly, share-able URL).
+             */
+            {
+                path: "product/:id",
+                element: <ProductDetail />,
             },
             // {
             //     path: "/login",

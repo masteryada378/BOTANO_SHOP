@@ -45,6 +45,16 @@ export const fetchCards = (params?: FetchCardsParams): Promise<Card[]> => {
     return apiGet<Card[]>(qs ? `${RESOURCE}?${qs}` : RESOURCE);
 };
 
+/**
+ * Отримати один товар за ID — використовується на сторінці деталей (PDP).
+ *
+ * Чому string | number?
+ * — useParams з react-router повертає string, але id у типі Card — number.
+ *   Підтримуємо обидва варіанти щоб уникнути приведення типів на стороні компонента.
+ */
+export const fetchCardById = (id: string | number): Promise<Card> =>
+    apiGet<Card>(`${RESOURCE}/${id}`);
+
 /** Пошук карток за query (для live suggestions) */
 export const searchCards = (query: string): Promise<Card[]> =>
   apiGet<Card[]>(`${RESOURCE}?q=${encodeURIComponent(query)}`);

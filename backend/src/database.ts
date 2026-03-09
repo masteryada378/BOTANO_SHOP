@@ -40,6 +40,34 @@ export const runMigrations = async (): Promise<void> => {
             column: "category",
             sql: "ALTER TABLE cards ADD COLUMN category VARCHAR(100) DEFAULT NULL",
         },
+        /**
+         * Поля для повноцінної сторінки товару (Task #14).
+         *
+         * description — розгорнутий опис товару, TEXT щоб не обмежувати розмір.
+         * brand       — виробник/бренд (Marvel, Funko, Nintendo тощо).
+         * old_price   — ціна до знижки; nullable, бо не всі товари мають акцію.
+         * in_stock    — флаг наявності; DEFAULT TRUE — новий товар є в наявності за замовчуванням.
+         *
+         * Чому окремі ALTER?
+         * — Якщо колонка вже існує (повторний запуск), тільки вона пропускається,
+         *   решта все одно додаються. Ідемпотентна міграція без падіння сервера.
+         */
+        {
+            column: "description",
+            sql: "ALTER TABLE cards ADD COLUMN description TEXT DEFAULT NULL",
+        },
+        {
+            column: "brand",
+            sql: "ALTER TABLE cards ADD COLUMN brand VARCHAR(100) DEFAULT NULL",
+        },
+        {
+            column: "old_price",
+            sql: "ALTER TABLE cards ADD COLUMN old_price DECIMAL(10,2) DEFAULT NULL",
+        },
+        {
+            column: "in_stock",
+            sql: "ALTER TABLE cards ADD COLUMN in_stock BOOLEAN DEFAULT TRUE",
+        },
     ];
 
     for (const migration of migrations) {
