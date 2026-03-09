@@ -330,357 +330,514 @@
 
 ## 20) Task #13 ✅ — Mobile Filter Drawer для каталогу
 
-**Назва:** Додати висувну панель фільтрів (Filter Drawer) у каталог
-
-**Бекграунд (Блок C — Catalog & Product, пункт 13 з бэклогу):**
-
-Третій крок Блоку C. Каталог вже має grid, toolbar із сортуванням і кнопку "Фільтри" (тригер з Task #12). Тепер потрібно створити **сам drawer** — висувну панель з фільтрами, яка відкривається при натисканні цієї кнопки.
-
-Після цього таску залишиться:
-
-- Task #14: маршрут `product/:id` і сторінка `ProductDetail`.
-- Task #15: breadcrumbs для catalog/product.
-
-**Логіка (чому це робимо):**
-
-- **Filter Drawer** — стандартний патерн мобільних каталогів (Rozetka, Amazon, Zara). Фільтри на мобілці не поміщаються у sidebar, тому ховаються у висувну панель (drawer), яка з'їжджає зліва/знизу. На desktop (md+) фільтри можуть бути sidebar, але зараз фокус — mobile-first drawer.
-- **Фільтр за ціною (Price Range)** — найважливіший фільтр для магазину. Юзер хоче бачити товари "від 100 до 500 грн". Потрібно два input-поля (min/max), без кастомного range slider — це складний компонент, який можна додати пізніше.
-- **Фільтр за категорією** — зараз модель `Card` не має поля `category`. Потрібно **розширити схему БД** і типи. Це фундаментальний крок для всього магазину — категорії потрібні і на головній, і в навігації, і в breadcrumbs.
-- **URL-синхронізація фільтрів** — як і сортування, фільтри зберігаються в URL (`/catalog?sort=price_asc&min_price=100&category=comics`). Це дозволяє ділитися посиланням з конкретною фільтрацією, зберігати стан при F5, і працювати з кнопкою "Назад" у браузері.
-- **Backend фільтрація** — фільтри мають працювати на сервері (а не клієнті), бо при великій кількості товарів тягнути все на фронт нераціонально. `GET /cards` отримує нові query params і будує динамічний `WHERE`.
-
-**Scope:**
-
-- Розширити таблицю `cards`: додати колонку `category` (VARCHAR).
-- Backend: підтримка `?min_price=`, `?max_price=`, `?category=` у `GET /cards`.
-- Frontend: компонент `FilterDrawer` (висувна панель з фільтрами).
-- Інтеграція drawer з `CatalogPage` через стан `isFilterOpen`.
-- URL-синхронізація фільтрів через `useSearchParams`.
-- Кнопка "Застосувати" у drawer закриває його і оновлює товари.
-- Кнопка "Скинути" очищає всі фільтри.
-- **НЕ** робимо кастомний range slider (поки два звичайних input).
-- **НЕ** робимо desktop sidebar з фільтрами (окремий таск, якщо потрібно).
-- **НЕ** робимо фільтр за наявністю (поки немає поля `in_stock`).
-
-**Що зробити (покроково):**
-
-### Крок 1 — Розширити схему БД: додати `category` до `cards`
-
-- **Файл:** `backend/src/database.ts` або SQL-міграція (окремий файл `backend/src/migrations/` або inline в `database.ts`).
-- Додай колонку `category` до таблиці `cards`:
-- **Чому `DEFAULT NULL`?** Існуючі товари не мають категорії — вони мають працювати без помилок. NULL означає "без категорії".
-- **Варіант реалізації:** можна додати auto-migration при старті сервера (перевірка через `SHOW COLUMNS FROM cards LIKE 'category'` і виконання ALTER якщо колонки немає). Або виконати SQL вручну один раз через Docker exec.
-- **Рекомендація:** Зроби простий migration-script або додай перевірку в `database.ts` при підключенні. Для навчального проєкту auto-migration при старті — прийнятний підхід.
-
-### Крок 2 — Оновити типи `Card`
-
-- **Файл:** `frontend/src/types/Card.ts` (update).
-- Додай `category?: string | null` до інтерфейсу `Card`.
-- **Файл:** `frontend/src/types/catalog.ts` (update).
-- Додай тип фільтрів:
-- Додай масив категорій (поки хардкод, пізніше можна тягнути з API):
-
-### Крок 3 — Розширити backend: підтримка фільтрів у `GET /cards`
-
-- **Файл:** `backend/src/routes/cards.ts` (update).
-- Додай підтримку query-параметрів `?min_price=`, `?max_price=`, `?category=` до існуючого `GET /cards`.
-- **Логіка побудови WHERE:** Динамічно додавай умови до масиву `conditions` та `params`:
-- **Валідація `min_price`/`max_price`:** перевіряй що це числа (`isNaN(Number(val))` → ігноруй). Не підставляй сирий string у числове порівняння.
-- **Сумісність:** фільтри працюють разом з `?q=` і `?sort=`. Наприклад: `?q=marvel&sort=price_asc&min_price=100&category=comics`.
-
-### Крок 4 — Оновити `cardService.ts`: передача фільтрів
-
-- **Файл:** `frontend/src/services/cardService.ts` (update).
-- Оновити `fetchCards()` — прийняти об'єкт параметрів замість окремого `sort`:
-- **Чому об'єкт?** З ростом кількості параметрів окремі аргументи стають некерованими. Об'єкт масштабується краще і читається зрозуміліше.
-
-### Крок 5 — Створити компонент `FilterDrawer`
-
-- **Файл:** `frontend/src/components/FilterDrawer.tsx` (create).
-- **Props:**
-- **UI-структура (mobile-first):**
-  1. **Overlay:** напівпрозорий фон за drawer (`bg-black/50`), клік по ньому закриває drawer.
-  2. **Drawer панель:** з'їжджає справа (`translate-x` анімація через Tailwind `transition-transform`), `w-80 max-w-[85vw]`, `bg-gray-900`, `h-full`, `overflow-y-auto`.
-  3. **Header drawer:** "Фільтри" + кнопка закриття (іконка `X` з `lucide-react`).
-  4. **Секція "Ціна":**
-    - Два input-поля: "Від" (min) і "До" (max).
-    - `type="number"`, `min="0"`, `placeholder="0"` / `placeholder="99999"`.
-    - Стилі input: `bg-gray-800 border-gray-700 rounded-lg text-white`.
-  5. **Секція "Категорія":**
-    - Список чекбоксів або radio-кнопок з масиву `CATEGORIES`.
-    - Поки **одна категорія** (radio), бо backend фільтрує по `category = ?`, а не `IN (...)`.
-  6. **Footer drawer (sticky внизу):**
-    - Кнопка "Застосувати" (`bg-violet-600 hover:bg-violet-700`, `w-full`).
-    - Кнопка "Скинути" (`text-gray-400 hover:text-white`, під "Застосувати").
-- **Поведінка:**
-  - Drawer має **локальний стан** фільтрів (не оновлює URL при кожній зміні input). Тільки при натисканні "Застосувати" — викликається `onApply(localFilters)`.
-  - "Скинути" — очищає локальний стан і викликає `onApply({})`.
-  - `Escape` закриває drawer.
-  - **Focus trap** бажаний, але не обов'язковий зараз.
-- **Анімація:** `transition-transform duration-300 ease-in-out`. Коли `isOpen` — `translate-x-0`, інакше `translate-x-full`.
-- **Body scroll lock:** коли drawer відкритий, бажано заблокувати скрол body (`overflow-hidden` на `<body>`). Використай `useEffect` в drawer або в `CatalogPage`.
-
-### Крок 6 — Інтегрувати `FilterDrawer` у `CatalogPage`
-
-- **Файл:** `frontend/src/pages/Catalog.tsx` (update).
-- **Стан:** `const [isFilterOpen, setIsFilterOpen] = useState(false);`
-- **URL-синхронізація фільтрів:**
-  - Зчитати фільтри з URL: `searchParams.get("min_price")`, `searchParams.get("max_price")`, `searchParams.get("category")`.
-  - При `onApply` — оновити `searchParams` (зберігаючи існуючий `sort`):
-- **Передай фільтри у `fetchCards()`:**
-  - `useEffect` залежить від `currentSort`, `min_price`, `max_price`, `category`.
-  - `fetchCards({ sort: currentSort, min_price, max_price, category })`.
-- **Підключи тригер:** замінити `console.log` у `onFilterClick` на `setIsFilterOpen(true)`.
-- **Рендер `FilterDrawer`:** додати в JSX `CatalogPage`.
-- **Активні фільтри badge:** опціонально — показати кількість активних фільтрів біля кнопки "Фільтри" у toolbar (наприклад, `Фільтри (2)`). Реалізуй через підрахунок непустих значень у фільтрах.
-
-**Файли для створення/змін:**
-
-
-| Файл                                       | Дія        |
-| ------------------------------------------ | ---------- |
-| `frontend/src/components/FilterDrawer.tsx` | **create** |
-| `frontend/src/types/catalog.ts`            | update     |
-| `frontend/src/types/Card.ts`               | update     |
-| `backend/src/routes/cards.ts`              | update     |
-| `frontend/src/services/cardService.ts`     | update     |
-| `frontend/src/pages/Catalog.tsx`           | update     |
-| `backend/src/database.ts` (або migration)  | update     |
-
-
-**Критерії приймання:**
-
-- `GET /cards?min_price=100&max_price=500` повертає товари в діапазоні цін.
-- `GET /cards?category=comics` повертає товари з категорією "comics".
-- Фільтри працюють разом з `?q=` та `?sort=`.
-- Невалідні значення `min_price`/`max_price` (наприклад, "abc") ігноруються без помилки.
-- Кнопка "Фільтри" у toolbar відкриває drawer справа.
-- Drawer має overlay, анімацію появи, кнопку закриття і Escape.
-- Секція "Ціна": два input (від/до) типу number.
-- Секція "Категорія": radio-кнопки з `CATEGORIES`.
-- "Застосувати" закриває drawer, оновлює URL і перезавантажує товари.
-- "Скинути" очищає фільтри, оновлює URL і перезавантажує товари.
-- При F5 з `?min_price=100&category=comics` — фільтри відновлюються у drawer.
-- Фільтри зберігають `sort` в URL (не скидають сортування).
-- Body scroll заблокований коли drawer відкритий.
-- Таблиця `cards` має колонку `category` (VARCHAR, nullable).
-- `Card` тип оновлений: `category?: string | null`.
-- Немає `any`, TypeScript strict.
+Виконано. Розширено БД (`category` VARCHAR), додано backend-фільтрацію (`?min_price=`, `?max_price=`, `?category=`), створено `FilterDrawer` з overlay/анімацією/body scroll lock, інтегровано з `CatalogPage` через URL-синхронізацію (`useSearchParams`). Кнопки "Застосувати"/"Скинути" працюють. `CatalogFilters`, `CATEGORIES` додано в `catalog.ts`.
 
 ---
 
 ## 21) Task #14 ✅ — Сторінка товару (Product Detail Page)
 
-**Назва:** Створити маршрут `product/:id` і сторінку `ProductDetail`
-
-**Бекграунд (Блок C — Catalog & Product, пункт 14 з бэклогу):**
-
-Четвертий крок Блоку C. Каталог показує товари у grid і дозволяє їх сортувати/фільтрувати. Але при натисканні на картку товару — нікуди не веде. Потрібна **окрема сторінка товару**, де юзер бачить повну інформацію, галерею зображень, ціну, опис і може додати товар у кошик.
-
-Після цього таску залишиться:
-
-- Task #15: breadcrumbs для catalog/product (останній крок Блоку C).
-
-**Логіка (чому це робимо):**
-
-- **Product Detail Page (PDP)** — ключова сторінка e-commerce. Саме тут юзер приймає рішення "купувати чи ні". Без PDP магазин — просто список карток без контексту.
-- **Backend `GET /cards/:id**` — зараз є PUT і DELETE для `:id`, але немає GET. Потрібен окремий endpoint для отримання одного товару.
-- **Розширення моделі** — для повноцінного PDP потрібно більше полів: `description`, `brand`, `old_price` (для знижок), `in_stock`. Додаємо їх до таблиці `cards`.
-- **Image Gallery** — поки товар має одне `image`. Повноцінна галерея з кількома зображеннями — це окремий таск (зв'язок many-to-one з окремою таблицею). Зараз зробимо простий варіант з одним зображенням і placeholder для галереї.
-- **SEO:** Сторінка товару — найважливіша для SEO. Правильний `<title>`, мета-теги, семантичні заголовки.
-
-**Scope:**
-
-- Розширити таблицю `cards`: додати `description` (TEXT), `brand` (VARCHAR), `old_price` (DECIMAL, nullable), `in_stock` (BOOLEAN, default TRUE).
-- Backend: додати `GET /cards/:id`.
-- Frontend: маршрут `/product/:id`, сторінка `ProductDetail`.
-- Відображення: зображення, назва, бренд, ціна/стара ціна, статус наявності, опис.
-- Кнопки "Додати в кошик" і "В обране" (wishlist поки `console.log`).
-- Зв'язок з каталогом: `CatalogCard` і `SearchSuggestions` ведуть на `/product/:id` при натисканні.
-- **НЕ** робимо табовий інтерфейс (опис/характеристики/відгуки) — буде пізніше.
-- **НЕ** робимо галерею з кількома фото (одне зображення поки).
-- **НЕ** робимо вибір атрибутів (розмір, колір) — буде пізніше.
-
-**Що зробити (покроково):**
-
-### Крок 1 — Розширити схему БД
-
-- Додати колонки до `cards`:
-- **Чому окремі ALTER?** Якщо якась колонка вже існує (наприклад, `category` з Task #13), окремі запити дозволяють обробити помилку для однієї колонки без блокування інших.
-- Оновити auto-migration логіку (якщо створена в Task #13) або виконати вручну.
-
-### Крок 2 — Оновити тип `Card`
-
-- **Файл:** `frontend/src/types/Card.ts` (update).
-- Додати поля:
-
-### Крок 3 — Додати backend endpoint `GET /cards/:id`
-
-- **Файл:** `backend/src/routes/cards.ts` (update).
-- Додай новий route **перед** `PUT /cards/:id`:
-- **Чому 404?** Якщо товару з таким id не існує — правильна HTTP-семантика. Frontend може показати "Товар не знайдено" замість порожньої сторінки.
-- **Типізація:** Створи серверний тип `Card` або використай `RowDataPacket` з mysql2. Уникай `any`.
-
-### Крок 4 — Оновити `cardService.ts`: додати `fetchCardById()`
-
-- **Файл:** `frontend/src/services/cardService.ts` (update).
-- Додай функцію:
-
-### Крок 5 — Створити сторінку `ProductDetail`
-
-- **Файл:** `frontend/src/pages/ProductDetail.tsx` (create).
-- **Структура:**
-  1. **Завантаження:** використай `useParams<{ id: string }>()` з react-router-dom.
-  2. **Стан:** `product`, `isLoading`, `error`.
-  3. *`*useEffect`:** при зміні `id` — `fetchCardById(id)`.
-  4. **Layout (mobile-first, вертикальний):**
-    - **Зображення** (top): `aspect-square`, `rounded-xl`, `bg-gray-800` з placeholder якщо `image` відсутній. `object-cover`. На desktop — зображення зліва, інфо справа (grid `md:grid-cols-2`).
-    - **Product Info (під зображенням):**
-      - Бренд: `text-sm text-violet-400 uppercase tracking-wider`.
-      - Назва: `text-2xl font-bold text-white`.
-      - Ціна: `text-3xl font-bold text-emerald-400` (використай `JetBrains Mono` якщо підключено).
-      - Стара ціна (якщо є `old_price`): перекреслена `line-through text-gray-500` поруч з основною.
-      - Знижка badge: якщо `old_price` > `price` — показати `"-{відсоток}%"` badge (`bg-red-500 text-white rounded-full px-2 py-0.5 text-xs`).
-      - Статус наявності: `in_stock ? "В наявності" : "Немає в наявності"`. Зелений/червоний відповідно.
-    - **Action Buttons:**
-      - "Додати в кошик" — `bg-violet-600 hover:bg-violet-700 w-full py-3 rounded-xl text-lg font-semibold`. Використовує `addToCart` з `AppContext`. Якщо `!in_stock` — кнопка `disabled`, `opacity-50`.
-      - "В обране" — іконка `Heart` з `lucide-react`, secondary стиль. `onClick={() => console.log("TODO: wishlist")}`.
-    - **Опис:** `text-gray-300`, якщо є `description`. Якщо немає — не рендерити секцію.
-  5. **Loading state:** скелетони для зображення та тексту (аналогічно `CatalogPage`).
-  6. **Error state:** "Товар не знайдено" з кнопкою "Повернутися до каталогу" (Link на `/catalog`).
-- **Семантика (SEO):**
-  - `<article>` для контейнера товару.
-  - `<h1>` для назви товару.
-  - `<img alt={product.title}>`.
-
-### Крок 6 — Додати маршрут і зв'язати навігацію
-
-- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
-- Додати: `<Route path="/product/:id" element={<ProductDetail />} />`.
-- **Файл:** `frontend/src/components/CatalogCard.tsx` (update).
-- Обгорнути картку у `<Link to={`/product/${card.id}`}>` (або зробити клік по картці навігацією через `useNavigate`). Кнопка "В кошик" **не** має тригерити навігацію — `e.stopPropagation()`.
-- **Файл:** `frontend/src/components/SearchSuggestions.tsx` (update).
-- При кліку на suggestion — навігація на `/product/${id}` замість (або разом з) поточної поведінки.
-
-**Файли для створення/змін:**
-
-
-| Файл                                            | Дія        |
-| ----------------------------------------------- | ---------- |
-| `frontend/src/pages/ProductDetail.tsx`          | **create** |
-| `frontend/src/types/Card.ts`                    | update     |
-| `backend/src/routes/cards.ts`                   | update     |
-| `frontend/src/services/cardService.ts`          | update     |
-| `frontend/src/routes/AppRoutes.tsx`             | update     |
-| `frontend/src/components/CatalogCard.tsx`       | update     |
-| `frontend/src/components/SearchSuggestions.tsx` | update     |
-| `backend/src/database.ts` (або migration)       | update     |
-
-
-**Критерії приймання:**
-
-- `GET /cards/1` повертає один товар з усіма полями (включно з `description`, `brand`, `old_price`, `in_stock`).
-- `GET /cards/99999` повертає 404 з повідомленням.
-- Маршрут `/product/:id` працює, сторінка рендериться.
-- Зображення товару відображається (або placeholder при відсутності).
-- Назва, бренд, ціна, стара ціна, знижка badge, статус наявності — відображаються коректно.
-- Кнопка "Додати в кошик" додає товар у `AppContext.cart`. Disabled якщо `!in_stock`.
-- Кнопка "В обране" присутня (функціональність — `console.log` поки).
-- Опис товару відображається, якщо є.
-- Клік по `CatalogCard` веде на `/product/:id`. Кнопка "В кошик" на картці **не** тригерить навігацію.
-- Клік по suggestion у пошуку веде на `/product/:id`.
-- Loading стан: скелетони при завантаженні.
-- Error стан: "Товар не знайдено" з посиланням на каталог.
-- Mobile-first: вертикальний layout на мобілці, 2 колонки на desktop (md+).
-- Семантичний HTML: `<article>`, `<h1>`, `alt` на зображенні.
-- Таблиця `cards` має нові колонки: `description`, `brand`, `old_price`, `in_stock`.
-- Немає `any`, TypeScript strict.
+Виконано. Розширено БД (`description`, `brand`, `old_price`, `in_stock`), додано `GET /cards/:id` (404 для неіснуючих). Створено `ProductDetail` (mobile-first, md:grid-cols-2, зображення/бренд/ціна/знижка/статус/опис, "Додати в кошик" через `AppContext`, "В обране" — заглушка). `CatalogCard` і `SearchSuggestions` ведуть на `/product/:id`. Маршрут `/product/:id` у `AppRoutes`.
 
 ---
 
 ## 22) Task #15 ✅ — Breadcrumbs для каталогу та сторінки товару
 
-Виконано. Створено `BreadcrumbItem` тип у `catalog.ts`. Компонент `Breadcrumbs` (`<nav>` + `<ol>`, `ChevronRight`-роздільник, `aria-current="page"` на останній крихті, іконка Home для першого елемента, `truncate` для довгих назв). Підключено до `CatalogPage` (динамічна третя крихта при активній категорії) та `ProductDetail` (скелетон під час loading, breadcrumbs після завантаження). Блок C (Catalog & Product) повністю закрито.
+Виконано. Створено `BreadcrumbItem` тип у `catalog.ts`. Компонент `Breadcrumbs` (`<nav>` + `<ol>`, `ChevronRight`-роздільник, `aria-current="page"` на останній крихті, іконка Home для першого елемента, `truncate` для довгих назв). Підключено до `CatalogPage` (динамічна третя крихта при активній категорії) та `ProductDetail` (скелетон під час loading, breadcrumbs після завантаження).
+
+**Блок C (Catalog & Product) повністю закрито. Переходимо до Блоку D (Cart & Checkout).**
 
 ---
 
-**Назва:** Створити компонент `Breadcrumbs` і підключити до Catalog та ProductDetail
+## 23) Task #16 — Розширити модель кошика + persist у localStorage
 
-**Бекграунд (Блок C — Catalog & Product, пункт 15 з бэклогу):**
+**Назва:** Переробити `AppContext` на повноцінну CartItem-модель із збереженням у localStorage
 
-П'ятий і **останній** крок Блоку C. Каталог і сторінка товару вже працюють, але юзер не розуміє "де я зараз?" у структурі сайту. Breadcrumbs ("хлібні крихти") — це навігаційний шлях, який показує ієрархію (наприклад: `Головна > Каталог > Marvel > Spider-Man Figure`).
+**Бекграунд (Блок D — Cart & Checkout, пункт 1 + 4 з бэклогу):**
 
-Після цього таску **Блок C (Catalog & Product) буде повністю закритий**. Наступний крок — Блок D (Cart & Checkout).
+Перший крок Блоку D. Зараз кошик — це `number[]` (просто масив ID). Цього недостатньо для реальної сторінки кошика: потрібно знати **кількість** кожного товару, **ціну на момент додавання** (price snapshot), **назву** і **зображення** (щоб рендерити список без додаткових запитів до API). Також кошик не зберігається між перезавантаженнями — при F5 все пропадає.
+
+Цей таск об'єднує два пункти бэклогу (розширення моделі + localStorage persist), бо вони логічно нерозривні: немає сенсу зберігати в localStorage масив `number[]`, який ні на що не годиться.
+
+Після цього таску:
+- Task #17: сторінка Cart.
+- Task #18: сторінка Checkout з валідацією.
 
 **Логіка (чому це робимо):**
 
-- **Навігаційний контекст** — без breadcrumbs юзер на сторінці товару не знає як повернутися до каталогу (окрім кнопки "Назад" у браузері). Breadcrumbs — стандарт e-commerce UX.
-- **SEO** — Google використовує breadcrumbs для rich snippets у пошуковій видачі. Семантична розмітка (`<nav aria-label="breadcrumb">`, `<ol>`) покращує індексацію.
-- **Structured data** — опціонально можна додати JSON-LD для breadcrumbs, але це не обов'язково зараз.
-- **Повторне використання** — один компонент `Breadcrumbs` для всіх сторінок. Він приймає масив "крихт" і рендерить їх з роздільниками.
+- **Price snapshot** — ціна товару може змінитися після додавання в кошик. Юзер додав товар за 299 грн, а через годину ціна стала 399 грн. Кошик має показувати ціну **на момент додавання**. Це стандарт e-commerce (Amazon, Rozetka, eBay).
+- **CartItem замість number[]** — сторінка кошика повинна рендерити список з назвою, зображенням, ціною, кількістю БЕЗ додаткових запитів до API. Якщо зберігати тільки ID — потрібно при кожному рендері завантажувати товари з бекенду, що повільно і ненадійно (товар могли видалити).
+- **Quantity management** — коли юзер натискає "В кошик" двічі на один товар — кількість має збільшитися до 2, а не створювати дублікат. Потрібні `increaseQuantity`, `decreaseQuantity`, `removeFromCart`.
+- **localStorage** — кошик має переживати перезавантаження сторінки, закриття вкладки і навіть перезапуск браузера. `localStorage` — найпростіший спосіб для клієнтського persist. `sessionStorage` не підходить — він зникає при закритті вкладки.
+- **Computed values** — `totalItems` (для badge у Header) і `totalPrice` (для сторінки кошика та checkout) мають обчислюватися автоматично від стану кошика. Це похідні дані, не окремий state.
 
 **Scope:**
 
-- Створити універсальний компонент `Breadcrumbs`.
-- Підключити до `CatalogPage` (Головна > Каталог).
-- Підключити до `ProductDetail` (Головна > Каталог > Назва товару).
-- Семантична розмітка: `<nav>`, `<ol>`, `<li>`, `aria-label`, `aria-current="page"`.
-- **НЕ** робимо JSON-LD structured data (можна додати пізніше).
-- **НЕ** робимо динамічну категорію в breadcrumbs (наприклад, "Головна > Комікси > Товар") — поки тільки "Каталог" як проміжний рівень.
+- Створити тип `CartItem` (id, title, price, image, quantity).
+- Переробити `AppContext`: замінити `cart: number[]` на `cart: CartItem[]`.
+- Додати методи: `addToCart(item)`, `removeFromCart(id)`, `updateQuantity(id, quantity)`, `clearCart()`.
+- Додати computed: `totalItems`, `totalPrice`.
+- Зберігати кошик у `localStorage` при кожній зміні.
+- Відновлювати кошик з `localStorage` при ініціалізації.
+- Оновити всі місця, що використовують старий `addToCart(id: number)`: `CatalogCard`, `ProductDetail`, Header badge.
+- **НЕ** робимо серверний кошик (поки тільки клієнтський).
+- **НЕ** робимо промокоди (буде на сторінці Cart).
 
 **Що зробити (покроково):**
 
-### Крок 1 — Створити тип `BreadcrumbItem`
+### Крок 1 — Створити тип `CartItem`
 
-- **Файл:** `frontend/src/types/catalog.ts` (update).
-- Додай:
+- **Файл:** `frontend/src/types/Cart.ts` (create).
+- Створи інтерфейс:
 
-### Крок 2 — Створити компонент `Breadcrumbs`
+```typescript
+export interface CartItem {
+  id: number;
+  title: string;
+  price: number;
+  image?: string;
+  quantity: number;
+}
+```
 
-- **Файл:** `frontend/src/components/Breadcrumbs.tsx` (create).
-- **Props:**
-- **Структура:**
-- **Роздільник:** `ChevronRight` з `lucide-react` (або символ `/`, `>`). Chevron — сучасніший вигляд.
-- **Останній елемент:** не є посиланням (поточна сторінка), має `aria-current="page"`, інший колір.
-- **Truncation:** назва товару може бути довгою — `truncate max-w-[200px]` на мобілці.
-- **Перший елемент завжди "Головна"** (з іконкою `Home` з lucide-react, опціонально).
+- **Чому окремий файл, а не в `Card.ts`?** CartItem — це не Card. Card — модель товару з бекенду. CartItem — модель позиції в кошику з локальними даними (quantity, price snapshot). Різна відповідальність → різні файли (SRP).
 
-### Крок 3 — Підключити `Breadcrumbs` до `CatalogPage`
+### Крок 2 — Створити хелпери для localStorage
 
-- **Файл:** `frontend/src/pages/Catalog.tsx` (update).
-- Додай `Breadcrumbs` над toolbar:
-- Якщо є активний фільтр за категорією — можна додати третю крихту:
+- **Файл:** `frontend/src/lib/storage.ts` (create).
+- Дві функції:
+  - `getStorageItem<T>(key: string, fallback: T): T` — читає з localStorage, парсить JSON, повертає `fallback` при помилці (corrupted data, SSR, private mode).
+  - `setStorageItem<T>(key: string, value: T): void` — серіалізує в JSON і записує. Мовчки ігнорує помилки (quota exceeded).
+- **Чому хелпери, а не прямий `localStorage.getItem`?** Повторюваний try/catch + JSON.parse в кожному компоненті — DRY violation. Плюс localStorage кидає виключення в Safari private mode і при переповненні квоти.
+- **Ключ кошика:** `"botano_cart"` — з префіксом проєкту, щоб не конфліктувати з іншими додатками на localhost.
 
-### Крок 4 — Підключити `Breadcrumbs` до `ProductDetail`
+### Крок 3 — Переробити `AppContext`
+
+- **Файл:** `frontend/src/context/AppContext.tsx` (update).
+- **Новий тип контексту:**
+
+```typescript
+type AppContextType = {
+  cart: CartItem[];
+  addToCart: (item: Omit<CartItem, "quantity">) => void;
+  removeFromCart: (id: number) => void;
+  updateQuantity: (id: number, quantity: number) => void;
+  clearCart: () => void;
+  totalItems: number;
+  totalPrice: number;
+};
+```
+
+- **`addToCart` логіка:** якщо товар з таким `id` вже в кошику — `quantity += 1`. Інакше — додати новий `CartItem` з `quantity: 1`. Ціна береться з параметра (price snapshot).
+- **`removeFromCart`:** фільтрує масив по `id`.
+- **`updateQuantity`:** якщо `quantity <= 0` — видаляє товар. Інакше — оновлює quantity. Це дозволяє кнопці "−" автоматично видаляти товар при зменшенні до 0.
+- **`totalItems`:** `cart.reduce((sum, item) => sum + item.quantity, 0)`. Використовується в Header badge.
+- **`totalPrice`:** `cart.reduce((sum, item) => sum + item.price * item.quantity, 0)`. Використовується на сторінці кошика.
+- **Persist:** використай `useEffect` з залежністю від `cart` — при кожній зміні записувай у localStorage. Ініціалізація: `useState(() => getStorageItem("botano_cart", []))`.
+- **Чому `Omit<CartItem, "quantity">` в `addToCart`?** Компонент, що додає товар, не повинен вказувати кількість — вона завжди починається з 1 або інкрементується. Кількість — внутрішня відповідальність контексту.
+
+### Крок 4 — Оновити `CatalogCard`
+
+- **Файл:** `frontend/src/components/CatalogCard.tsx` (update).
+- Старий виклик: `addToCart(id)` → Новий: `addToCart({ id, title, price, image })`.
+- Компонент вже має `title`, `price`, `image` в props — просто передай їх.
+- Якщо CatalogCard не отримує `title`/`price` — додай ці props.
+
+### Крок 5 — Оновити `ProductDetail`
 
 - **Файл:** `frontend/src/pages/ProductDetail.tsx` (update).
-- Додай `Breadcrumbs` над зображенням товару:
-- **Важливо:** breadcrumbs рендеряться **тільки коли товар завантажений** (не під час loading). Або показати скелетон для breadcrumbs.
+- Старий виклик: `addToCart(product.id)` → Новий: `addToCart({ id: product.id, title: product.title, price: product.price, image: product.image })`.
+- Тут product вже завантажений — просто деструктуруй потрібні поля.
+
+### Крок 6 — Оновити Header badge
+
+- **Файл:** `frontend/src/layouts/Header.tsx` (update).
+- Старий: `cart.length` → Новий: `totalItems`.
+- `totalItems` вже враховує `quantity` кожного товару — badge показує реальну кількість одиниць, а не кількість позицій.
+
+### Крок 7 — Перевірити і оновити BottomNavigation
+
+- **Файл:** `frontend/src/layouts/BottomNavigation.tsx` (update, якщо використовує `cart.length`).
+- Аналогічно Header: `cart.length` → `totalItems`.
 
 **Файли для створення/змін:**
 
-
-| Файл                                      | Дія        |
-| ----------------------------------------- | ---------- |
-| `frontend/src/components/Breadcrumbs.tsx` | **create** |
-| `frontend/src/types/catalog.ts`           | update     |
-| `frontend/src/pages/Catalog.tsx`          | update     |
-| `frontend/src/pages/ProductDetail.tsx`    | update     |
-
+| Файл                                          | Дія        |
+| --------------------------------------------- | ---------- |
+| `frontend/src/types/Cart.ts`                 | **create** |
+| `frontend/src/lib/storage.ts`                | **create** |
+| `frontend/src/context/AppContext.tsx`         | update     |
+| `frontend/src/components/CatalogCard.tsx`    | update     |
+| `frontend/src/pages/ProductDetail.tsx`       | update     |
+| `frontend/src/layouts/Header.tsx`            | update     |
+| `frontend/src/layouts/BottomNavigation.tsx`  | update     |
 
 **Критерії приймання:**
 
-- Компонент `Breadcrumbs` приймає масив `BreadcrumbItem[]` і рендерить ланцюжок посилань.
-- Роздільник між елементами — `ChevronRight` (або інша іконка/символ).
-- Останній елемент — не посилання, має `aria-current="page"`.
-- `CatalogPage`: breadcrumbs "Головна > Каталог" відображаються над toolbar.
-- `ProductDetail`: breadcrumbs "Головна > Каталог > Назва товару" відображаються над контентом.
-- Посилання в breadcrumbs працюють (навігація без перезавантаження сторінки).
-- Довга назва товару обрізається з `...` (truncate).
-- Семантична розмітка: `<nav aria-label="...">`, `<ol>`, `<li>`.
-- Mobile-first: компактний розмір тексту, gap між елементами.
+- `CartItem` тип має поля: `id`, `title`, `price`, `image?`, `quantity`.
+- `addToCart` додає новий товар з `quantity: 1` або інкрементує існуючий.
+- `removeFromCart` видаляє товар з кошика по `id`.
+- `updateQuantity` змінює кількість; при `quantity <= 0` — видаляє товар.
+- `clearCart` очищає кошик повністю.
+- `totalItems` повертає суму `quantity` всіх позицій.
+- `totalPrice` повертає суму `price * quantity` по всіх позиціях.
+- При F5 кошик відновлюється з `localStorage`.
+- При додаванні/видаленні товарів — `localStorage` оновлюється автоматично.
+- Header badge показує `totalItems` (не кількість позицій, а одиниць).
+- `CatalogCard` і `ProductDetail` використовують новий `addToCart({ id, title, price, image })`.
+- Corrupted localStorage не ламає додаток (fallback на пустий масив).
 - Немає `any`, TypeScript strict.
 
 ---
 
-**Після завершення Tasks #13–#15 Блок C (Catalog & Product) повністю закритий. Наступний етап — Блок D (Cart & Checkout): Tasks #16–#19.**
+## 24) Task #17 — Сторінка кошика (Cart Page)
+
+**Назва:** Реалізувати сторінку `/cart` зі списком товарів, зміною кількості та підсумком
+
+**Бекграунд (Блок D — Cart & Checkout, пункт 2 з бэклогу):**
+
+Другий крок Блоку D. Модель кошика з Task #16 вже зберігає `CartItem[]` з кількістю, ціною, назвою. Але юзер не має інтерфейсу для перегляду і редагування кошика — кнопка "Кошик" у Header/BottomNav поки нікуди не веде. Потрібна повноцінна сторінка кошика.
+
+Після цього таску:
+- Task #18: сторінка Checkout з валідацією.
+
+**Логіка (чому це робимо):**
+
+- **Cart Page** — обов'язковий етап воронки покупки. Юзер хоче: 1) побачити що він додав, 2) змінити кількість, 3) видалити зайве, 4) побачити загальну суму, 5) перейти до оформлення. Без цієї сторінки покупка неможлива.
+- **Зміна кількості (+/−)** — стандарт e-commerce. Юзер не повинен видаляти товар і додавати заново, щоб змінити кількість. Кнопки `+`/`−` інтуїтивно зрозумілі.
+- **Subtotal per item** — показуємо `ціна × кількість` біля кожного товару. Юзер одразу бачить скільки коштує кожна позиція.
+- **Пустий кошик** — якщо кошик порожній — показуємо friendly повідомлення з посиланням на каталог. Не просто blank page.
+- **Order Summary** — sticky блок з підсумком (total, кількість позицій) і кнопкою "Оформити замовлення". На мобілці — внизу сторінки, на desktop — справа (sidebar).
+
+**Scope:**
+
+- Створити сторінку `CartPage` (`/cart`).
+- Створити компонент `CartItemRow` (один рядок товару в кошику).
+- Додати маршрут `/cart` у `AppRoutes`.
+- Підключити навігацію: Header іконка кошика → `/cart`, BottomNav "Кошик" → `/cart`.
+- Реалізувати зміну кількості (+/−), видалення, очищення кошика.
+- Показати subtotal per item, total, кількість позицій.
+- Кнопка "Оформити замовлення" → `/checkout` (поки просто Link, сторінка Checkout буде в Task #18).
+- Пустий стан: іконка, текст, кнопка "До каталогу".
+- **НЕ** робимо промокод (можна додати пізніше як окремий feature).
+- **НЕ** робимо збереження кошика на бекенді (поки тільки localStorage).
+
+**Що зробити (покроково):**
+
+### Крок 1 — Створити компонент `CartItemRow`
+
+- **Файл:** `frontend/src/components/CartItemRow.tsx` (create).
+- **Props:** `item: CartItem`, `onUpdateQuantity: (id: number, qty: number) => void`, `onRemove: (id: number) => void`.
+- **UI-структура (mobile-first):**
+  1. **Зображення:** `w-20 h-20 rounded-lg object-cover bg-gray-800` з placeholder якщо `image` відсутній. Клікабельне — `Link to={/product/${item.id}}`.
+  2. **Info блок (flex-1):**
+     - Назва товару: `text-sm font-medium text-white`, `truncate` або `line-clamp-2`.
+     - Ціна за одиницю: `text-sm text-gray-400`.
+  3. **Quantity controls (flex, items-center, gap-2):**
+     - Кнопка `−`: `w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700`. При `quantity === 1` — кнопка стає іконкою `Trash2` (видалення).
+     - Кількість: `text-center min-w-[2rem] text-white font-medium`.
+     - Кнопка `+`: `w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700`.
+  4. **Subtotal:** `text-right font-semibold text-emerald-400`. Формат: `price × quantity`. На мобілці — під quantity controls.
+  5. **Кнопка видалення:** іконка `X` або `Trash2` з `lucide-react`, `text-gray-500 hover:text-red-400`. Підтвердження видалення НЕ потрібне (можна додати пізніше).
+- **Семантика:** `<li>` елемент (батьківський `<ul>` буде у CartPage).
+- **Анімація:** опціонально — `transition-colors` на hover стану.
+
+### Крок 2 — Створити сторінку `CartPage`
+
+- **Файл:** `frontend/src/pages/CartPage.tsx` (create).
+- **Структура:**
+  1. **Breadcrumbs:** "Головна > Кошик".
+  2. **Заголовок:** `<h1>Кошик</h1>` з кількістю позицій (`totalItems товарів`).
+  3. **Пустий стан** (якщо `cart.length === 0`):
+     - Іконка `ShoppingCart` з `lucide-react`, великий розмір, `text-gray-600`.
+     - Текст: "Ваш кошик порожній".
+     - Підтекст: "Додайте товари з каталогу".
+     - Кнопка: `<Link to="/catalog">` — "Перейти до каталогу" (`bg-violet-600`).
+  4. **Список товарів** (якщо `cart.length > 0`):
+     - `<ul>` з `CartItemRow` для кожного елемента.
+     - Розділювачі між елементами: `divide-y divide-gray-800`.
+  5. **Кнопка "Очистити кошик":** `text-sm text-gray-400 hover:text-red-400`, іконка `Trash2`. Розташування — під заголовком або під списком.
+  6. **Order Summary блок:**
+     - На мобілці: під списком товарів, `sticky bottom-0` з `bg-gray-900/95 backdrop-blur` (щоб кнопка "Оформити" завжди видима). Або без sticky — просто внизу.
+     - На desktop (`md+`): справа від списку у grid `md:grid-cols-[1fr_320px]`.
+     - Вміст:
+       - "Разом:" + `totalPrice` грн (великий, bold, `text-emerald-400`, `JetBrains Mono`).
+       - Кількість: "3 товари на суму ..." (використай `pluralize`).
+       - Кнопка "Оформити замовлення": `bg-violet-600 hover:bg-violet-700 w-full py-3 rounded-xl text-lg font-semibold`.
+       - `<Link to="/checkout">` — поки Checkout не існує, кнопка веде на `/checkout` (буде 404 або заглушка до Task #18).
+       - Під кнопкою: "Продовжити покупки" — `<Link to="/catalog">`, `text-sm text-violet-400 hover:text-violet-300`.
+- **Форматування цін:** створи utility `formatPrice(value: number): string` у `frontend/src/lib/formatPrice.ts` — форматує число в гривні (наприклад, `1 299 грн`). Використай `Intl.NumberFormat("uk-UA")`. Повторно використовуй у `CartItemRow`, `CartPage`, і пізніше в `Checkout`.
+
+### Крок 3 — Додати маршрут `/cart` у AppRoutes
+
+- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
+- Додати: `{ path: "cart", element: <CartPage /> }`.
+
+### Крок 4 — Підключити навігацію на `/cart`
+
+- **Файл:** `frontend/src/layouts/Header.tsx` (update).
+- Іконка кошика в Header має вести на `/cart` (`<Link to="/cart">`). Зараз вона може бути просто декоративною — перетвори на посилання.
+- **Файл:** `frontend/src/layouts/BottomNavigation.tsx` (update).
+- Кнопка "Кошик" у BottomNavigation має вести на `/cart`. Якщо зараз це заглушка — підключи реальний шлях.
+
+### Крок 5 — Створити `formatPrice` utility
+
+- **Файл:** `frontend/src/lib/formatPrice.ts` (create).
+- Функція `formatPrice(value: number): string`.
+- Використай `new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value)` + суфікс ` грн`.
+- **Чому utility?** Ціни відображаються в 5+ місцях (CatalogCard, ProductDetail, CartItemRow, CartPage, Checkout). Один формат — один файл.
+
+**Файли для створення/змін:**
+
+| Файл                                          | Дія        |
+| --------------------------------------------- | ---------- |
+| `frontend/src/components/CartItemRow.tsx`     | **create** |
+| `frontend/src/pages/CartPage.tsx`            | **create** |
+| `frontend/src/lib/formatPrice.ts`            | **create** |
+| `frontend/src/routes/AppRoutes.tsx`          | update     |
+| `frontend/src/layouts/Header.tsx`            | update     |
+| `frontend/src/layouts/BottomNavigation.tsx`  | update     |
+
+**Критерії приймання:**
+
+- Маршрут `/cart` працює, сторінка рендериться.
+- Пустий кошик: іконка, текст "Ваш кошик порожній", кнопка "Перейти до каталогу".
+- Кожен товар у списку: зображення (або placeholder), назва, ціна за одиницю, кількість (+/−), subtotal.
+- Кнопка `−` при `quantity === 1` видаляє товар (або стає іконкою Trash).
+- Кнопка `+` інкрементує кількість.
+- "Очистити кошик" видаляє всі товари.
+- Order Summary: загальна сума, кількість товарів, кнопка "Оформити замовлення" (→ `/checkout`).
+- "Продовжити покупки" → `/catalog`.
+- Зображення товару — Link на `/product/:id`.
+- Breadcrumbs: "Головна > Кошик".
+- Header іконка кошика веде на `/cart`.
+- BottomNavigation "Кошик" веде на `/cart`.
+- `formatPrice` utility коректно форматує ціни (1299 → "1 299 грн").
+- Mobile-first: вертикальний layout на мобілці, sidebar на desktop (md+).
+- Семантичний HTML: `<h1>`, `<ul>`, `<li>`.
+- Немає `any`, TypeScript strict.
+
+---
+
+## 25) Task #18 — Сторінка Checkout з валідацією та збереженням замовлення
+
+**Назва:** Реалізувати сторінку `/checkout` з формою, валідацією і backend для замовлень
+
+**Бекграунд (Блок D — Cart & Checkout, пункт 3 з бэклогу):**
+
+Третій і **останній** крок Блоку D. Кошик працює (Task #16–17), юзер бачить свої товари і суму. Тепер потрібен фінальний крок — **оформлення замовлення**: юзер вводить контактні дані, обирає доставку/оплату, переглядає підсумок і натискає "Підтвердити".
+
+Після цього таску **Блок D (Cart & Checkout) буде повністю закритий**. Наступний етап — Блок E (Auth/Profile/Admin).
+
+**Логіка (чому це робимо):**
+
+- **Checkout** — фінальна точка конверсії. Якщо тут все зрозуміло і зручно — юзер завершує покупку. Якщо ні — кидає кошик. За статистикою ~70% кошиків abandonment rate — і UX checkout є ключовим фактором.
+- **Серверне збереження** — замовлення має зберігатися в БД, а не тільки на клієнті. Потрібна таблиця `orders` і `order_items` (нормалізована структура: одне замовлення → багато позицій).
+- **Валідація** — ім'я, телефон, email, адреса доставки обов'язкові. Клієнтська валідація — перша лінія захисту (UX). Серверна валідація — обов'язкова (безпека), але зараз фокус на клієнтській.
+- **Single-page checkout** — для MVP не робимо multi-step wizard (крок 1 → крок 2 → крок 3). Одна сторінка з секціями — простіше для розробки і достатньо для навчального проєкту. Multi-step можна додати пізніше.
+- **Order Summary** — дублюємо summary з кошика на сторінці checkout. Юзер має бачити що він купує на кожному кроці.
+
+**Scope:**
+
+- Backend: створити таблиці `orders` і `order_items`, endpoint `POST /orders`.
+- Frontend: сторінка `CheckoutPage` (`/checkout`) з формою.
+- Форма: контактні дані (ім'я, телефон, email), адреса доставки, спосіб доставки (select), спосіб оплати (radio).
+- Валідація: обов'язкові поля, формат телефону/email.
+- Order Summary: список товарів з кошика + підсумок.
+- При успішному замовленні: очистити кошик, показати confirmation (або redirect на success-сторінку).
+- **НЕ** робимо реальну оплату (mock).
+- **НЕ** робимо інтеграцію з Новою Поштою API (dropdown з типами доставки поки хардкод).
+- **НЕ** робимо guest checkout vs auth checkout (поки все guest — auth буде у Блоці E).
+- **НЕ** робимо multi-step wizard (одна сторінка).
+
+**Що зробити (покроково):**
+
+### Крок 1 — Створити таблиці `orders` та `order_items` у БД
+
+- **Файл:** `backend/src/database.ts` (update — додати auto-migration).
+- **Таблиця `orders`:**
+
+```sql
+CREATE TABLE IF NOT EXISTS orders (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  customer_name VARCHAR(255) NOT NULL,
+  customer_phone VARCHAR(50) NOT NULL,
+  customer_email VARCHAR(255) NOT NULL,
+  delivery_method VARCHAR(50) NOT NULL,
+  delivery_address TEXT NOT NULL,
+  payment_method VARCHAR(50) NOT NULL,
+  total_price DECIMAL(10,2) NOT NULL,
+  status VARCHAR(50) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+- **Таблиця `order_items`:**
+
+```sql
+CREATE TABLE IF NOT EXISTS order_items (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  order_id INT NOT NULL,
+  product_id INT NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  price DECIMAL(10,2) NOT NULL,
+  quantity INT NOT NULL,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+```
+
+- **Чому `title` і `price` в `order_items`?** Снепшот на момент замовлення. Якщо товар перейменують або змінять ціну — старі замовлення мають зберігати оригінальні дані.
+- **Чому `status`?** Мінімальний lifecycle: `pending` → `confirmed` → `shipped` → `completed`. Зараз все буде `pending`, але поле готове для розширення.
+
+### Крок 2 — Створити backend endpoint `POST /orders`
+
+- **Файл:** `backend/src/routes/orders.ts` (create).
+- **Request body:**
+
+```typescript
+interface CreateOrderBody {
+  customer_name: string;
+  customer_phone: string;
+  customer_email: string;
+  delivery_method: string;
+  delivery_address: string;
+  payment_method: string;
+  items: Array<{
+    product_id: number;
+    title: string;
+    price: number;
+    quantity: number;
+  }>;
+}
+```
+
+- **Логіка:**
+  1. Валідація: перевірити що `items` не порожній, обов'язкові поля заповнені.
+  2. Обчислити `total_price` = `sum(price * quantity)` по всіх items.
+  3. В **транзакції**: INSERT в `orders` → отримати `insertId` → INSERT кожен item в `order_items` з `order_id`.
+  4. Відповідь: `201 Created` з `{ id: orderId, status: "pending" }`.
+- **Чому транзакція?** Якщо INSERT в `order_items` зламається на третьому елементі — замовлення в `orders` не повинно залишитися без повного списку товарів. Транзакція гарантує атомарність.
+- **Файл:** `backend/src/server.ts` (update).
+- Підключити: `app.use("/orders", ordersRouter)`.
+
+### Крок 3 — Створити типи для Checkout
+
+- **Файл:** `frontend/src/types/checkout.ts` (create).
+- Створити:
+
+```typescript
+export interface CheckoutFormData {
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  deliveryMethod: string;
+  deliveryAddress: string;
+  paymentMethod: string;
+}
+
+export const DELIVERY_METHODS = [
+  { value: "nova_poshta", label: "Нова Пошта (відділення)" },
+  { value: "nova_poshta_courier", label: "Нова Пошта (кур'єр)" },
+  { value: "ukrposhta", label: "Укрпошта" },
+  { value: "pickup", label: "Самовивіз" },
+] as const;
+
+export const PAYMENT_METHODS = [
+  { value: "card_on_delivery", label: "Картою при отриманні" },
+  { value: "cash_on_delivery", label: "Готівкою при отриманні" },
+  { value: "card_online", label: "Оплата онлайн (картка)" },
+] as const;
+```
+
+### Крок 4 — Створити API-сервіс для замовлень
+
+- **Файл:** `frontend/src/services/orderService.ts` (create).
+- Функція `createOrder(data): Promise<{ id: number; status: string }>`.
+- Збирає дані форми + items з кошика → POST `/orders`.
+
+### Крок 5 — Створити хук валідації `useCheckoutForm`
+
+- **Файл:** `frontend/src/hooks/useCheckoutForm.ts` (create).
+- Хук інкапсулює:
+  - Стан форми (`formData`).
+  - Помилки валідації (`errors: Record<string, string>`).
+  - `handleChange(field, value)` — оновлює поле і знімає помилку.
+  - `validate(): boolean` — перевіряє всі поля, повертає `true` якщо валідна.
+- **Правила валідації:**
+  - `customerName`: не порожнє, мінімум 2 символи.
+  - `customerPhone`: не порожнє, відповідає UA-формату (`/^\+?3?8?0\d{9}$/` або простіше — мінімум 10 цифр).
+  - `customerEmail`: не порожнє, базовий email regexp (`/.+@.+\..+/`).
+  - `deliveryMethod`: обрано (не порожнє).
+  - `deliveryAddress`: не порожнє (мінімум 5 символів). Якщо `deliveryMethod === "pickup"` — можна не вимагати.
+  - `paymentMethod`: обрано (не порожнє).
+- **Чому хук, а не логіка в компоненті?** SRP — компонент рендерить UI, хук обробляє бізнес-логіку форми. Хук можна тестувати окремо.
+
+### Крок 6 — Створити сторінку `CheckoutPage`
+
+- **Файл:** `frontend/src/pages/CheckoutPage.tsx` (create).
+- **Guard:** якщо кошик порожній — redirect на `/cart` (або показати "Кошик порожній, оформлення неможливе").
+- **Layout (mobile-first):**
+  1. **Breadcrumbs:** "Головна > Кошик > Оформлення".
+  2. **Заголовок:** `<h1>Оформлення замовлення</h1>`.
+  3. **Mobile:** одна колонка — форма зверху, summary знизу.
+  4. **Desktop (md+):** grid `md:grid-cols-[1fr_380px]` — форма зліва, summary справа (sticky).
+- **Секція "Контактні дані":**
+  - Input: Ім'я (`text`), Телефон (`tel`), Email (`email`).
+  - Кожен input: `label` + `input` + `error message`.
+  - Стилі: `bg-gray-800 border-gray-700 rounded-lg text-white focus:border-violet-500`.
+  - Помилки: `text-red-400 text-sm mt-1`.
+- **Секція "Доставка":**
+  - `<select>` або radio-група з `DELIVERY_METHODS`.
+  - Input: Адреса доставки (textarea або text input). Ховається при `pickup`.
+- **Секція "Оплата":**
+  - Radio-група з `PAYMENT_METHODS`.
+- **Order Summary (sidebar / bottom):**
+  - Стисний список товарів: назва × кількість = subtotal.
+  - Загальна сума: `totalPrice` грн.
+  - Кількість товарів.
+- **Кнопка "Підтвердити замовлення":**
+  - `bg-violet-600 hover:bg-violet-700 w-full py-3 rounded-xl text-lg font-semibold`.
+  - При натисканні: `validate()` → якщо OK → `createOrder(...)` → при успіху: `clearCart()` + показати success state.
+  - Loading state: кнопка `disabled`, показує спінер або текст "Оформлення...".
+- **Success state:** після успішного замовлення — показати "Замовлення #123 створено!" з іконкою `CheckCircle`, кнопкою "На головну" або "До каталогу". Можна зробити inline (замінити форму) або redirect на `/order-success/:id`.
+- **Error state:** якщо `POST /orders` повернув помилку — показати toast або inline error.
+
+### Крок 7 — Додати маршрут `/checkout` у AppRoutes
+
+- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
+- Додати: `{ path: "checkout", element: <CheckoutPage /> }`.
+
+**Файли для створення/змін:**
+
+| Файл                                          | Дія        |
+| --------------------------------------------- | ---------- |
+| `backend/src/routes/orders.ts`               | **create** |
+| `frontend/src/pages/CheckoutPage.tsx`        | **create** |
+| `frontend/src/types/checkout.ts`             | **create** |
+| `frontend/src/services/orderService.ts`      | **create** |
+| `frontend/src/hooks/useCheckoutForm.ts`      | **create** |
+| `backend/src/database.ts`                    | update     |
+| `backend/src/server.ts`                      | update     |
+| `frontend/src/routes/AppRoutes.tsx`          | update     |
+
+**Критерії приймання:**
+
+- Таблиці `orders` та `order_items` створюються при старті backend.
+- `POST /orders` з валідним body → 201 з `{ id, status: "pending" }`.
+- `POST /orders` з порожнім `items` → 400 з повідомленням.
+- Маршрут `/checkout` працює, сторінка рендериться.
+- Якщо кошик порожній — redirect на `/cart` або повідомлення.
+- Форма: ім'я, телефон, email, доставка, адреса, оплата — все відображається.
+- Валідація: порожні поля підсвічуються, невалідний телефон/email — повідомлення.
+- Адреса ховається при виборі "Самовивіз".
+- Order Summary: список товарів з кошика, загальна сума.
+- "Підтвердити замовлення" → POST → очищення кошика → success state.
+- Loading state на кнопці під час запиту.
+- Error state якщо API поверне помилку.
+- Breadcrumbs: "Головна > Кошик > Оформлення".
+- Mobile-first: одна колонка, summary знизу. Desktop: sidebar справа.
+- Семантичний HTML: `<form>`, `<fieldset>`, `<label>`, `<h1>`, `<h2>` для секцій.
+- Немає `any`, TypeScript strict.
+
+---
+
+**Після завершення Tasks #16–#18 Блок D (Cart & Checkout) повністю закритий. Наступний етап — Блок E (Auth/Profile/Admin): Tasks #19+.**
