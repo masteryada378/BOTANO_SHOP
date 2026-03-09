@@ -10,25 +10,50 @@
  */
 
 import { Card } from "../types/Card";
-import type { SortOption } from "../types/catalog";
+import type { CatalogFilters, SortOption } from "../types/catalog";
 import { apiDelete, apiGet, apiPost, apiPut } from "./api";
 
 /** Базовий шлях ресурсу відносно VITE_API_URL */
 const RESOURCE = "/cards";
 
 /**
- * Отримати картки з опціональним сортуванням.
+ * Параметри запиту карток.
+ *
+ * Чому об'єкт замість окремих аргументів?
+ * — З ростом кількості фільтрів окремі аргументи (sort, min, max, category, ...)
+ *   стають некерованими. Об'єкт масштабується, читається, деструктурується.
+ *   Зміна сигнатури не зламає місця виклику (можна додати нові поля без рефактору).
+ */
+export interface FetchCardsParams extends CatalogFilters {
+    sort?: SortOption;
+}
+
+/**
+ * Отримати картки з опціональними фільтрами та сортуванням.
  *
  * Чому URLSearchParams?
  * — Безпечна побудова query string з автоматичним кодуванням значень.
- *   Легко розширити новими параметрами (page, limit, filters) без ручної конкатенації.
+ *   Немає ризику XSS через ручну конкатенацію рядків.
  */
-export const fetchCards = (sort?: SortOption): Promise<Card[]> => {
-    const params = new URLSearchParams();
-    if (sort) params.set("sort", sort);
-    const qs = params.toString();
+export const fetchCards = (params?: FetchCardsParams): Promise<Card[]> => {
+    const searchParams = new URLSearchParams();
+    if (params?.sort) searchParams.set("sort", params.sort);
+    if (params?.min_price) searchParams.set("min_price", params.min_price);
+    if (params?.max_price) searchParams.set("max_price", params.max_price);
+    if (params?.category) searchParams.set("category", params.category);
+    const qs = searchParams.toString();
     return apiGet<Card[]>(qs ? `${RESOURCE}?${qs}` : RESOURCE);
 };
+
+/**
+ * Отримати один товар за ID — використовується на сторінці деталей (PDP).
+ *
+ * Чому string | number?
+ * — useParams з react-router повертає string, але id у типі Card — number.
+ *   Підтримуємо обидва варіанти щоб уникнути приведення типів на стороні компонента.
+ */
+export const fetchCardById = (id: string | number): Promise<Card> =>
+    apiGet<Card>(`${RESOURCE}/${id}`);
 
 /** Пошук карток за query (для live suggestions) */
 export const searchCards = (query: string): Promise<Card[]> =>

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import type { ResultSetHeader } from "mysql2";
+import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "../database";
 
 const router = Router();
@@ -19,30 +19,83 @@ const ORDER_MAP: Record<string, string> = {
     oldest: "id ASC",
 };
 
-// Отримати картки: підтримка ?q= (пошук) та ?sort= (сортування)
+/**
+ * GET /cards — список карток з підтримкою фільтрів, пошуку та сортування.
+ *
+ * Query params:
+ *   ?q=         — текстовий пошук по полю title (LIKE)
+ *   ?sort=      — сортування (price_asc | price_desc | newest | oldest)
+ *   ?min_price= — мінімальна ціна (price >= ?)
+ *   ?max_price= — максимальна ціна (price <= ?)
+ *   ?category=  — фільтр за категорією (category = ?)
+ *
+ * Чому динамічний масив conditions?
+ * — Кількість активних фільтрів невідома заздалегідь. Масив дозволяє
+ *   накопичувати умови і з'єднати їх через AND в кінці — без if-else гілок
+ *   для кожної комбінації фільтрів.
+ */
 router.get("/", async (req: Request, res: Response) => {
     try {
         const q =
             typeof req.query.q === "string" ? req.query.q.trim() : "";
-
-        // Зчитуємо sort із запиту; якщо не вказано або невалідне — дефолт "newest"
         const rawSort =
             typeof req.query.sort === "string" ? req.query.sort : "";
         const orderBy = ORDER_MAP[rawSort] ?? ORDER_MAP.newest;
 
-        // Будуємо запит динамічно, щоб не дублювати логіку для випадків з/без ?q=
-        let sql = "SELECT * FROM cards";
-        const params: string[] = [];
+        // Зчитуємо фільтри з query params
+        const rawMinPrice =
+            typeof req.query.min_price === "string" ? req.query.min_price : "";
+        const rawMaxPrice =
+            typeof req.query.max_price === "string" ? req.query.max_price : "";
+        const category =
+            typeof req.query.category === "string" ? req.query.category.trim() : "";
+
+        /**
+         * Валідація числових фільтрів.
+         *
+         * Чому Number() + isNaN(), а не parseInt()?
+         * — parseInt("100abc") === 100 — тихо ігнорує суфікс.
+         *   Number("100abc") === NaN — строга перевірка.
+         *   Невалідне значення просто ігнорується (не 400 error),
+         *   щоб не ламати запити зі старими/неповними URL.
+         */
+        const minPrice = rawMinPrice && !isNaN(Number(rawMinPrice))
+            ? Number(rawMinPrice)
+            : null;
+        const maxPrice = rawMaxPrice && !isNaN(Number(rawMaxPrice))
+            ? Number(rawMaxPrice)
+            : null;
+
+        // Накопичуємо умови WHERE та параметри для prepared statement
+        const conditions: string[] = [];
+        const params: (string | number)[] = [];
 
         if (q) {
-            sql += " WHERE title LIKE ?";
+            conditions.push("title LIKE ?");
             params.push(`%${q}%`);
         }
+        if (minPrice !== null) {
+            conditions.push("price >= ?");
+            params.push(minPrice);
+        }
+        if (maxPrice !== null) {
+            conditions.push("price <= ?");
+            params.push(maxPrice);
+        }
+        if (category) {
+            conditions.push("category = ?");
+            params.push(category);
+        }
 
-        // orderBy береться виключно з ORDER_MAP — безпечно вставляти в рядок
+        let sql = "SELECT * FROM cards";
+        if (conditions.length > 0) {
+            sql += " WHERE " + conditions.join(" AND ");
+        }
+
+        // orderBy береться виключно з ORDER_MAP — безпечно підставляти в рядок
         sql += ` ORDER BY ${orderBy}`;
 
-        // При пошуку обмежуємо до 10 результатів (live suggestions)
+        // При текстовому пошуку обмежуємо результати (live suggestions)
         if (q) {
             sql += " LIMIT 10";
         }
@@ -51,6 +104,48 @@ router.get("/", async (req: Request, res: Response) => {
         res.json(rows);
     } catch (err) {
         console.error("DB error:", err);
+        res.status(500).json({ error: "Database error" });
+    }
+});
+
+/**
+ * GET /cards/:id — отримати один товар за його ID.
+ *
+ * Чому цей route стоїть перед PUT /:id та DELETE /:id?
+ * — Express перебирає маршрути зверху вниз. GET /:id має бути оголошений
+ *   раніше PUT і DELETE з тим самим параметром, щоб не конкурувати з ними.
+ *
+ * Чому 404, а не порожній масив?
+ * — HTTP-семантика: ресурс не знайдено = 404. Frontend може показати
+ *   зрозуміле повідомлення "Товар не знайдено" замість пустої сторінки.
+ *
+ * Чому RowDataPacket?
+ * — mysql2 повертає рядки як масив RowDataPacket. Явна типізація замість
+ *   unknown[] або any[] дає автодоповнення і ловить помилки на етапі збірки.
+ */
+router.get("/:id", async (req: Request<{ id: string }>, res: Response) => {
+    const cardId = parseInt(req.params.id, 10);
+
+    // Валідуємо ID до запиту в БД — уникаємо зайвого DB-round-trip
+    if (isNaN(cardId)) {
+        res.status(400).json({ message: "Невалідний ID товару" });
+        return;
+    }
+
+    try {
+        const [rows] = await pool.query<RowDataPacket[]>(
+            "SELECT * FROM cards WHERE id = ?",
+            [cardId],
+        );
+
+        if (rows.length === 0) {
+            res.status(404).json({ message: "Товар не знайдено" });
+            return;
+        }
+
+        res.json(rows[0]);
+    } catch (err) {
+        console.error("DB error (GET /cards/:id):", err);
         res.status(500).json({ error: "Database error" });
     }
 });
