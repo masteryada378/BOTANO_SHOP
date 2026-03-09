@@ -4,24 +4,50 @@ import { pool } from "../database";
 
 const router = Router();
 
-// Отримати всі картки (або результати пошуку за ?q=)
+/**
+ * Маппінг допустимих значень ?sort= на SQL ORDER BY.
+ *
+ * Чому маппінг, а не підстановка user input?
+ * — ORDER BY не можна параметризувати через ? placeholder у MySQL.
+ *   Маппінг гарантує, що в SQL потрапить тільки одне з наших рядків,
+ *   а не довільний рядок від клієнта (захист від SQL-ін'єкції).
+ */
+const ORDER_MAP: Record<string, string> = {
+    price_asc: "price ASC",
+    price_desc: "price DESC",
+    newest: "id DESC",
+    oldest: "id ASC",
+};
+
+// Отримати картки: підтримка ?q= (пошук) та ?sort= (сортування)
 router.get("/", async (req: Request, res: Response) => {
     try {
         const q =
             typeof req.query.q === "string" ? req.query.q.trim() : "";
 
-        if (q === "") {
-            const [rows] = await pool.query(
-                "SELECT * FROM cards ORDER BY id DESC",
-            );
-            res.json(rows);
-            return;
+        // Зчитуємо sort із запиту; якщо не вказано або невалідне — дефолт "newest"
+        const rawSort =
+            typeof req.query.sort === "string" ? req.query.sort : "";
+        const orderBy = ORDER_MAP[rawSort] ?? ORDER_MAP.newest;
+
+        // Будуємо запит динамічно, щоб не дублювати логіку для випадків з/без ?q=
+        let sql = "SELECT * FROM cards";
+        const params: string[] = [];
+
+        if (q) {
+            sql += " WHERE title LIKE ?";
+            params.push(`%${q}%`);
         }
 
-        const [rows] = await pool.query(
-            "SELECT * FROM cards WHERE title LIKE ? ORDER BY id DESC LIMIT 10",
-            [`%${q}%`],
-        );
+        // orderBy береться виключно з ORDER_MAP — безпечно вставляти в рядок
+        sql += ` ORDER BY ${orderBy}`;
+
+        // При пошуку обмежуємо до 10 результатів (live suggestions)
+        if (q) {
+            sql += " LIMIT 10";
+        }
+
+        const [rows] = await pool.query(sql, params);
         res.json(rows);
     } catch (err) {
         console.error("DB error:", err);
