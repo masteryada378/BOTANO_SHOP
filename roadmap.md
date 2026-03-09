@@ -328,7 +328,7 @@
 
 ---
 
-## 20) Task #13 — Mobile Filter Drawer для каталогу
+## 20) Task #13 ✅ — Mobile Filter Drawer для каталогу
 
 **Назва:** Додати висувну панель фільтрів (Filter Drawer) у каталог
 
