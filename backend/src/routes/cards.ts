@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "../database";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { adminMiddleware } from "../middleware/adminMiddleware";
 
 const router = Router();
 
@@ -150,8 +152,17 @@ router.get("/:id", async (req: Request<{ id: string }>, res: Response) => {
     }
 });
 
-// Створити нову картку
-router.post("/", async (req: Request, res: Response) => {
+/**
+ * POST /cards — створити товар.
+ * PUT /cards/:id — оновити товар.
+ * DELETE /cards/:id — видалити товар.
+ *
+ * Chain: authMiddleware → adminMiddleware → handler.
+ * authMiddleware перевіряє токен і встановлює req.user.
+ * adminMiddleware перевіряє req.user.role === 'admin'.
+ * GET-ендпоінти залишаються публічними — каталог доступний всім.
+ */
+router.post("/", authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
     const { title, price, image } = req.body;
 
     try {
@@ -174,8 +185,8 @@ router.post("/", async (req: Request, res: Response) => {
     }
 });
 
-// Оновити картку
-router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
+// Оновити картку (тільки admin)
+router.put("/:id", authMiddleware, adminMiddleware, async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     const { title, price, image } = req.body;
 
@@ -199,7 +210,8 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
     }
 });
 
-router.delete("/:id", async (req: Request<{ id: string }>, res: Response) => {
+// Видалити картку (тільки admin)
+router.delete("/:id", authMiddleware, adminMiddleware, async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
 
     const cardId = parseInt(id, 10);

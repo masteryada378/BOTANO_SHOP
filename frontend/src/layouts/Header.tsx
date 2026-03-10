@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { ShoppingCart, User, Search, Menu, X, Zap } from "lucide-react";
+import { ShoppingCart, User, Search, Menu, X, Zap, Shield } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import { useDebounce } from "../hooks/useDebounce";
@@ -125,6 +125,21 @@ export const Header = () => {
                             </span>
                         )}
                     </Link>
+
+                    {/*
+                     * Admin іконка — видима тільки для role=admin.
+                     * Звичайні юзери не бачать посилання на /admin взагалі.
+                     * Реальний захист — adminMiddleware на бекенді.
+                     */}
+                    {user?.role === "admin" && (
+                        <Link
+                            to="/admin"
+                            aria-label="Адмін-панель"
+                            className="rounded-md p-2 text-violet-400 hover:bg-violet-600/20 hover:text-violet-300 transition-colors"
+                        >
+                            <Shield size={20} aria-hidden="true" />
+                        </Link>
+                    )}
 
                     {/*
                      * Умовний рендер: гість → /login, авторизований → /profile.

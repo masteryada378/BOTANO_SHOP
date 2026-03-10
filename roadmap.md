@@ -985,7 +985,7 @@ export const ORDER_STATUS_MAP: Record<string, { label: string; color: string }> 
 
 ---
 
-## 30) Task #23 — Admin CRUD для товарів
+## 30) Task #23 ✅ — Admin CRUD для товарів
 
 **Назва:** Створити адмін-панель для керування каталогом товарів з ролевим захистом
 
@@ -1111,5 +1111,7 @@ export const ORDER_STATUS_MAP: Record<string, { label: string; color: string }> 
 - Existing AddProductForm, EditProductModal, DeleteButton перевикористані (не дубльовані).
 - Mobile-first admin layout.
 - Немає `any`, TypeScript strict.
+
+Виконано. Створено `adminMiddleware` (403 для не-адмінів). POST/PUT/DELETE /cards захищені `authMiddleware → adminMiddleware`. Створено `AdminRoute` (фронтенд guard: гість → /login, user → /, admin → AdminPage). Створено `AdminPage` (`/admin`) з responsive таблицею (desktop) / картками (mobile), inline формою додавання, EditProductModal, DeleteButton. `Home.tsx` очищена від CRUD — тепер landing page з CTA. Лінк `Shield` у Header тільки для admin role.
 
 **Блок E (Auth/Profile/Admin) повністю закритий. Наступний етап — Блок F (Quality): рефакторинг, усунення `any`, централізований error handling, базові тести.**

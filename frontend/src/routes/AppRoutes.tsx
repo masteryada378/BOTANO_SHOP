@@ -22,6 +22,8 @@ import { LoginPage } from "../pages/LoginPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { ProfilePage } from "../pages/ProfilePage";
+import { AdminRoute } from "../components/AdminRoute";
+import { AdminPage } from "../pages/AdminPage";
 
 const router = createBrowserRouter([
     {
@@ -86,6 +88,22 @@ const router = createBrowserRouter([
                     <ProtectedRoute>
                         <ProfilePage />
                     </ProtectedRoute>
+                ),
+            },
+            {
+                /**
+                 * Адмін-панель — Task #23.
+                 * AdminRoute: гість → /login, авторизований не-адмін → /,
+                 * адмін → AdminPage.
+                 *
+                 * Подвійний захист: AdminRoute (фронтенд UX-guard) +
+                 * adminMiddleware (бекенд security-guard).
+                 */
+                path: "admin",
+                element: (
+                    <AdminRoute>
+                        <AdminPage />
+                    </AdminRoute>
                 ),
             },
         ],
