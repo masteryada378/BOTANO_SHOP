@@ -6,9 +6,10 @@
  *   Якщо ендпоінт зміниться — правимо тут, а не у JSX.
  */
 
-import { apiPost } from "./api";
+import { apiGet, apiPost } from "./api";
 import type { CartItem } from "../types/Cart";
 import type { CheckoutFormData } from "../types/checkout";
+import type { OrderDetail, OrderSummary } from "../types/order";
 
 /** Відповідь бекенду на успішне створення замовлення */
 export interface CreateOrderResponse {
@@ -45,3 +46,18 @@ export const createOrder = (
 
     return apiPost<CreateOrderResponse>("/orders", body);
 };
+
+/**
+ * Отримати список замовлень авторизованого юзера.
+ * GET /orders — захищений ендпоінт (authMiddleware на бекенді).
+ * Токен автоматично додається у request() з localStorage.
+ */
+export const fetchOrders = (): Promise<OrderSummary[]> => apiGet("/orders");
+
+/**
+ * Отримати деталі одного замовлення з позиціями.
+ * GET /orders/:id — бекенд перевіряє ownership (юзер бачить тільки свої замовлення).
+ * 404 якщо замовлення чуже або не існує.
+ */
+export const fetchOrderById = (id: number): Promise<OrderDetail> =>
+    apiGet(`/orders/${id}`);

@@ -837,7 +837,7 @@ ALTER TABLE orders ADD CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCE
 
 ---
 
-## 29) Task #22 — Profile + OrderHistory
+## 29) Task #22 ✅ — Profile + OrderHistory
 
 **Назва:** Створити сторінку профілю з інформацією про юзера та історією замовлень
 

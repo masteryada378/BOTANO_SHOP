@@ -8,18 +8,7 @@ import { CheckoutPage } from "../pages/CheckoutPage";
 import { LoginPage } from "../pages/LoginPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { ProtectedRoute } from "../components/ProtectedRoute";
-
-/**
- * Тимчасова заглушка для /profile.
- * Task #22 замінить її на повноцінну ProfilePage з OrderHistory.
- * Використовуємо inline-компонент щоб не створювати окремий файл для заглушки.
- */
-const ProfilePlaceholder = () => (
-    <main className="container mx-auto max-w-7xl px-4 py-12 text-center">
-        <h1 className="text-2xl font-bold text-white mb-2">Мій профіль</h1>
-        <p className="text-gray-400">Сторінка профілю буде реалізована у Task #22.</p>
-    </main>
-);
+import { ProfilePage } from "../pages/ProfilePage";
 
 const router = createBrowserRouter([
     {
@@ -67,13 +56,12 @@ const router = createBrowserRouter([
             /**
              * Профіль — захищений маршрут (тільки для авторизованих).
              * ProtectedRoute перенаправляє неавторизованих на /login з location.state.from.
-             * Task #22 замінить ProfilePlaceholder на повноцінну сторінку.
              */
             {
                 path: "profile",
                 element: (
                     <ProtectedRoute>
-                        <ProfilePlaceholder />
+                        <ProfilePage />
                     </ProtectedRoute>
                 ),
             },
