@@ -350,494 +350,768 @@
 
 ## 23) Task #16 ✅ — Розширити модель кошика + persist у localStorage
 
-**Назва:** Переробити `AppContext` на повноцінну CartItem-модель із збереженням у localStorage
-
-**Бекграунд (Блок D — Cart & Checkout, пункт 1 + 4 з бэклогу):**
-
-Перший крок Блоку D. Зараз кошик — це `number[]` (просто масив ID). Цього недостатньо для реальної сторінки кошика: потрібно знати **кількість** кожного товару, **ціну на момент додавання** (price snapshot), **назву** і **зображення** (щоб рендерити список без додаткових запитів до API). Також кошик не зберігається між перезавантаженнями — при F5 все пропадає.
-
-Цей таск об'єднує два пункти бэклогу (розширення моделі + localStorage persist), бо вони логічно нерозривні: немає сенсу зберігати в localStorage масив `number[]`, який ні на що не годиться.
-
-Після цього таску:
-- Task #17: сторінка Cart.
-- Task #18: сторінка Checkout з валідацією.
-
-**Логіка (чому це робимо):**
-
-- **Price snapshot** — ціна товару може змінитися після додавання в кошик. Юзер додав товар за 299 грн, а через годину ціна стала 399 грн. Кошик має показувати ціну **на момент додавання**. Це стандарт e-commerce (Amazon, Rozetka, eBay).
-- **CartItem замість number[]** — сторінка кошика повинна рендерити список з назвою, зображенням, ціною, кількістю БЕЗ додаткових запитів до API. Якщо зберігати тільки ID — потрібно при кожному рендері завантажувати товари з бекенду, що повільно і ненадійно (товар могли видалити).
-- **Quantity management** — коли юзер натискає "В кошик" двічі на один товар — кількість має збільшитися до 2, а не створювати дублікат. Потрібні `increaseQuantity`, `decreaseQuantity`, `removeFromCart`.
-- **localStorage** — кошик має переживати перезавантаження сторінки, закриття вкладки і навіть перезапуск браузера. `localStorage` — найпростіший спосіб для клієнтського persist. `sessionStorage` не підходить — він зникає при закритті вкладки.
-- **Computed values** — `totalItems` (для badge у Header) і `totalPrice` (для сторінки кошика та checkout) мають обчислюватися автоматично від стану кошика. Це похідні дані, не окремий state.
-
-**Scope:**
-
-- Створити тип `CartItem` (id, title, price, image, quantity).
-- Переробити `AppContext`: замінити `cart: number[]` на `cart: CartItem[]`.
-- Додати методи: `addToCart(item)`, `removeFromCart(id)`, `updateQuantity(id, quantity)`, `clearCart()`.
-- Додати computed: `totalItems`, `totalPrice`.
-- Зберігати кошик у `localStorage` при кожній зміні.
-- Відновлювати кошик з `localStorage` при ініціалізації.
-- Оновити всі місця, що використовують старий `addToCart(id: number)`: `CatalogCard`, `ProductDetail`, Header badge.
-- **НЕ** робимо серверний кошик (поки тільки клієнтський).
-- **НЕ** робимо промокоди (буде на сторінці Cart).
-
-**Що зробити (покроково):**
-
-### Крок 1 — Створити тип `CartItem`
-
-- **Файл:** `frontend/src/types/Cart.ts` (create).
-- Створи інтерфейс:
-
-```typescript
-export interface CartItem {
-  id: number;
-  title: string;
-  price: number;
-  image?: string;
-  quantity: number;
-}
-```
-
-- **Чому окремий файл, а не в `Card.ts`?** CartItem — це не Card. Card — модель товару з бекенду. CartItem — модель позиції в кошику з локальними даними (quantity, price snapshot). Різна відповідальність → різні файли (SRP).
-
-### Крок 2 — Створити хелпери для localStorage
-
-- **Файл:** `frontend/src/lib/storage.ts` (create).
-- Дві функції:
-  - `getStorageItem<T>(key: string, fallback: T): T` — читає з localStorage, парсить JSON, повертає `fallback` при помилці (corrupted data, SSR, private mode).
-  - `setStorageItem<T>(key: string, value: T): void` — серіалізує в JSON і записує. Мовчки ігнорує помилки (quota exceeded).
-- **Чому хелпери, а не прямий `localStorage.getItem`?** Повторюваний try/catch + JSON.parse в кожному компоненті — DRY violation. Плюс localStorage кидає виключення в Safari private mode і при переповненні квоти.
-- **Ключ кошика:** `"botano_cart"` — з префіксом проєкту, щоб не конфліктувати з іншими додатками на localhost.
-
-### Крок 3 — Переробити `AppContext`
-
-- **Файл:** `frontend/src/context/AppContext.tsx` (update).
-- **Новий тип контексту:**
-
-```typescript
-type AppContextType = {
-  cart: CartItem[];
-  addToCart: (item: Omit<CartItem, "quantity">) => void;
-  removeFromCart: (id: number) => void;
-  updateQuantity: (id: number, quantity: number) => void;
-  clearCart: () => void;
-  totalItems: number;
-  totalPrice: number;
-};
-```
-
-- **`addToCart` логіка:** якщо товар з таким `id` вже в кошику — `quantity += 1`. Інакше — додати новий `CartItem` з `quantity: 1`. Ціна береться з параметра (price snapshot).
-- **`removeFromCart`:** фільтрує масив по `id`.
-- **`updateQuantity`:** якщо `quantity <= 0` — видаляє товар. Інакше — оновлює quantity. Це дозволяє кнопці "−" автоматично видаляти товар при зменшенні до 0.
-- **`totalItems`:** `cart.reduce((sum, item) => sum + item.quantity, 0)`. Використовується в Header badge.
-- **`totalPrice`:** `cart.reduce((sum, item) => sum + item.price * item.quantity, 0)`. Використовується на сторінці кошика.
-- **Persist:** використай `useEffect` з залежністю від `cart` — при кожній зміні записувай у localStorage. Ініціалізація: `useState(() => getStorageItem("botano_cart", []))`.
-- **Чому `Omit<CartItem, "quantity">` в `addToCart`?** Компонент, що додає товар, не повинен вказувати кількість — вона завжди починається з 1 або інкрементується. Кількість — внутрішня відповідальність контексту.
-
-### Крок 4 — Оновити `CatalogCard`
-
-- **Файл:** `frontend/src/components/CatalogCard.tsx` (update).
-- Старий виклик: `addToCart(id)` → Новий: `addToCart({ id, title, price, image })`.
-- Компонент вже має `title`, `price`, `image` в props — просто передай їх.
-- Якщо CatalogCard не отримує `title`/`price` — додай ці props.
-
-### Крок 5 — Оновити `ProductDetail`
-
-- **Файл:** `frontend/src/pages/ProductDetail.tsx` (update).
-- Старий виклик: `addToCart(product.id)` → Новий: `addToCart({ id: product.id, title: product.title, price: product.price, image: product.image })`.
-- Тут product вже завантажений — просто деструктуруй потрібні поля.
-
-### Крок 6 — Оновити Header badge
-
-- **Файл:** `frontend/src/layouts/Header.tsx` (update).
-- Старий: `cart.length` → Новий: `totalItems`.
-- `totalItems` вже враховує `quantity` кожного товару — badge показує реальну кількість одиниць, а не кількість позицій.
-
-### Крок 7 — Перевірити і оновити BottomNavigation
-
-- **Файл:** `frontend/src/layouts/BottomNavigation.tsx` (update, якщо використовує `cart.length`).
-- Аналогічно Header: `cart.length` → `totalItems`.
-
-**Файли для створення/змін:**
-
-| Файл                                          | Дія        |
-| --------------------------------------------- | ---------- |
-| `frontend/src/types/Cart.ts`                 | **create** |
-| `frontend/src/lib/storage.ts`                | **create** |
-| `frontend/src/context/AppContext.tsx`         | update     |
-| `frontend/src/components/CatalogCard.tsx`    | update     |
-| `frontend/src/pages/ProductDetail.tsx`       | update     |
-| `frontend/src/layouts/Header.tsx`            | update     |
-| `frontend/src/layouts/BottomNavigation.tsx`  | update     |
-
-**Критерії приймання:**
-
-- `CartItem` тип має поля: `id`, `title`, `price`, `image?`, `quantity`.
-- `addToCart` додає новий товар з `quantity: 1` або інкрементує існуючий.
-- `removeFromCart` видаляє товар з кошика по `id`.
-- `updateQuantity` змінює кількість; при `quantity <= 0` — видаляє товар.
-- `clearCart` очищає кошик повністю.
-- `totalItems` повертає суму `quantity` всіх позицій.
-- `totalPrice` повертає суму `price * quantity` по всіх позиціях.
-- При F5 кошик відновлюється з `localStorage`.
-- При додаванні/видаленні товарів — `localStorage` оновлюється автоматично.
-- Header badge показує `totalItems` (не кількість позицій, а одиниць).
-- `CatalogCard` і `ProductDetail` використовують новий `addToCart({ id, title, price, image })`.
-- Corrupted localStorage не ламає додаток (fallback на пустий масив).
-- Немає `any`, TypeScript strict.
+Виконано. Створено тип `CartItem` (`id`, `title`, `price`, `image?`, `quantity`), хелпери `getStorageItem`/`setStorageItem` для localStorage (`frontend/src/lib/storage.ts`). Перероблено `AppContext`: `cart: CartItem[]` з методами `addToCart`/`removeFromCart`/`updateQuantity`/`clearCart`, computed `totalItems`/`totalPrice`. Persist у localStorage (`botano_cart`) при кожній зміні. Оновлено `CatalogCard`, `ProductDetail`, Header badge, `BottomNavigation`.
 
 ---
 
 ## 24) Task #17 ✅ — Сторінка кошика (Cart Page)
 
-**Назва:** Реалізувати сторінку `/cart` зі списком товарів, зміною кількості та підсумком
-
-**Бекграунд (Блок D — Cart & Checkout, пункт 2 з бэклогу):**
-
-Другий крок Блоку D. Модель кошика з Task #16 вже зберігає `CartItem[]` з кількістю, ціною, назвою. Але юзер не має інтерфейсу для перегляду і редагування кошика — кнопка "Кошик" у Header/BottomNav поки нікуди не веде. Потрібна повноцінна сторінка кошика.
-
-Після цього таску:
-- Task #18: сторінка Checkout з валідацією.
-
-**Логіка (чому це робимо):**
-
-- **Cart Page** — обов'язковий етап воронки покупки. Юзер хоче: 1) побачити що він додав, 2) змінити кількість, 3) видалити зайве, 4) побачити загальну суму, 5) перейти до оформлення. Без цієї сторінки покупка неможлива.
-- **Зміна кількості (+/−)** — стандарт e-commerce. Юзер не повинен видаляти товар і додавати заново, щоб змінити кількість. Кнопки `+`/`−` інтуїтивно зрозумілі.
-- **Subtotal per item** — показуємо `ціна × кількість` біля кожного товару. Юзер одразу бачить скільки коштує кожна позиція.
-- **Пустий кошик** — якщо кошик порожній — показуємо friendly повідомлення з посиланням на каталог. Не просто blank page.
-- **Order Summary** — sticky блок з підсумком (total, кількість позицій) і кнопкою "Оформити замовлення". На мобілці — внизу сторінки, на desktop — справа (sidebar).
-
-**Scope:**
-
-- Створити сторінку `CartPage` (`/cart`).
-- Створити компонент `CartItemRow` (один рядок товару в кошику).
-- Додати маршрут `/cart` у `AppRoutes`.
-- Підключити навігацію: Header іконка кошика → `/cart`, BottomNav "Кошик" → `/cart`.
-- Реалізувати зміну кількості (+/−), видалення, очищення кошика.
-- Показати subtotal per item, total, кількість позицій.
-- Кнопка "Оформити замовлення" → `/checkout` (поки просто Link, сторінка Checkout буде в Task #18).
-- Пустий стан: іконка, текст, кнопка "До каталогу".
-- **НЕ** робимо промокод (можна додати пізніше як окремий feature).
-- **НЕ** робимо збереження кошика на бекенді (поки тільки localStorage).
-
-**Що зробити (покроково):**
-
-### Крок 1 — Створити компонент `CartItemRow`
-
-- **Файл:** `frontend/src/components/CartItemRow.tsx` (create).
-- **Props:** `item: CartItem`, `onUpdateQuantity: (id: number, qty: number) => void`, `onRemove: (id: number) => void`.
-- **UI-структура (mobile-first):**
-  1. **Зображення:** `w-20 h-20 rounded-lg object-cover bg-gray-800` з placeholder якщо `image` відсутній. Клікабельне — `Link to={/product/${item.id}}`.
-  2. **Info блок (flex-1):**
-     - Назва товару: `text-sm font-medium text-white`, `truncate` або `line-clamp-2`.
-     - Ціна за одиницю: `text-sm text-gray-400`.
-  3. **Quantity controls (flex, items-center, gap-2):**
-     - Кнопка `−`: `w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700`. При `quantity === 1` — кнопка стає іконкою `Trash2` (видалення).
-     - Кількість: `text-center min-w-[2rem] text-white font-medium`.
-     - Кнопка `+`: `w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700`.
-  4. **Subtotal:** `text-right font-semibold text-emerald-400`. Формат: `price × quantity`. На мобілці — під quantity controls.
-  5. **Кнопка видалення:** іконка `X` або `Trash2` з `lucide-react`, `text-gray-500 hover:text-red-400`. Підтвердження видалення НЕ потрібне (можна додати пізніше).
-- **Семантика:** `<li>` елемент (батьківський `<ul>` буде у CartPage).
-- **Анімація:** опціонально — `transition-colors` на hover стану.
-
-### Крок 2 — Створити сторінку `CartPage`
-
-- **Файл:** `frontend/src/pages/CartPage.tsx` (create).
-- **Структура:**
-  1. **Breadcrumbs:** "Головна > Кошик".
-  2. **Заголовок:** `<h1>Кошик</h1>` з кількістю позицій (`totalItems товарів`).
-  3. **Пустий стан** (якщо `cart.length === 0`):
-     - Іконка `ShoppingCart` з `lucide-react`, великий розмір, `text-gray-600`.
-     - Текст: "Ваш кошик порожній".
-     - Підтекст: "Додайте товари з каталогу".
-     - Кнопка: `<Link to="/catalog">` — "Перейти до каталогу" (`bg-violet-600`).
-  4. **Список товарів** (якщо `cart.length > 0`):
-     - `<ul>` з `CartItemRow` для кожного елемента.
-     - Розділювачі між елементами: `divide-y divide-gray-800`.
-  5. **Кнопка "Очистити кошик":** `text-sm text-gray-400 hover:text-red-400`, іконка `Trash2`. Розташування — під заголовком або під списком.
-  6. **Order Summary блок:**
-     - На мобілці: під списком товарів, `sticky bottom-0` з `bg-gray-900/95 backdrop-blur` (щоб кнопка "Оформити" завжди видима). Або без sticky — просто внизу.
-     - На desktop (`md+`): справа від списку у grid `md:grid-cols-[1fr_320px]`.
-     - Вміст:
-       - "Разом:" + `totalPrice` грн (великий, bold, `text-emerald-400`, `JetBrains Mono`).
-       - Кількість: "3 товари на суму ..." (використай `pluralize`).
-       - Кнопка "Оформити замовлення": `bg-violet-600 hover:bg-violet-700 w-full py-3 rounded-xl text-lg font-semibold`.
-       - `<Link to="/checkout">` — поки Checkout не існує, кнопка веде на `/checkout` (буде 404 або заглушка до Task #18).
-       - Під кнопкою: "Продовжити покупки" — `<Link to="/catalog">`, `text-sm text-violet-400 hover:text-violet-300`.
-- **Форматування цін:** створи utility `formatPrice(value: number): string` у `frontend/src/lib/formatPrice.ts` — форматує число в гривні (наприклад, `1 299 грн`). Використай `Intl.NumberFormat("uk-UA")`. Повторно використовуй у `CartItemRow`, `CartPage`, і пізніше в `Checkout`.
-
-### Крок 3 — Додати маршрут `/cart` у AppRoutes
-
-- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
-- Додати: `{ path: "cart", element: <CartPage /> }`.
-
-### Крок 4 — Підключити навігацію на `/cart`
-
-- **Файл:** `frontend/src/layouts/Header.tsx` (update).
-- Іконка кошика в Header має вести на `/cart` (`<Link to="/cart">`). Зараз вона може бути просто декоративною — перетвори на посилання.
-- **Файл:** `frontend/src/layouts/BottomNavigation.tsx` (update).
-- Кнопка "Кошик" у BottomNavigation має вести на `/cart`. Якщо зараз це заглушка — підключи реальний шлях.
-
-### Крок 5 — Створити `formatPrice` utility
-
-- **Файл:** `frontend/src/lib/formatPrice.ts` (create).
-- Функція `formatPrice(value: number): string`.
-- Використай `new Intl.NumberFormat("uk-UA", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value)` + суфікс ` грн`.
-- **Чому utility?** Ціни відображаються в 5+ місцях (CatalogCard, ProductDetail, CartItemRow, CartPage, Checkout). Один формат — один файл.
-
-**Файли для створення/змін:**
-
-| Файл                                          | Дія        |
-| --------------------------------------------- | ---------- |
-| `frontend/src/components/CartItemRow.tsx`     | **create** |
-| `frontend/src/pages/CartPage.tsx`            | **create** |
-| `frontend/src/lib/formatPrice.ts`            | **create** |
-| `frontend/src/routes/AppRoutes.tsx`          | update     |
-| `frontend/src/layouts/Header.tsx`            | update     |
-| `frontend/src/layouts/BottomNavigation.tsx`  | update     |
-
-**Критерії приймання:**
-
-- Маршрут `/cart` працює, сторінка рендериться.
-- Пустий кошик: іконка, текст "Ваш кошик порожній", кнопка "Перейти до каталогу".
-- Кожен товар у списку: зображення (або placeholder), назва, ціна за одиницю, кількість (+/−), subtotal.
-- Кнопка `−` при `quantity === 1` видаляє товар (або стає іконкою Trash).
-- Кнопка `+` інкрементує кількість.
-- "Очистити кошик" видаляє всі товари.
-- Order Summary: загальна сума, кількість товарів, кнопка "Оформити замовлення" (→ `/checkout`).
-- "Продовжити покупки" → `/catalog`.
-- Зображення товару — Link на `/product/:id`.
-- Breadcrumbs: "Головна > Кошик".
-- Header іконка кошика веде на `/cart`.
-- BottomNavigation "Кошик" веде на `/cart`.
-- `formatPrice` utility коректно форматує ціни (1299 → "1 299 грн").
-- Mobile-first: вертикальний layout на мобілці, sidebar на desktop (md+).
-- Семантичний HTML: `<h1>`, `<ul>`, `<li>`.
-- Немає `any`, TypeScript strict.
+Виконано. Створено `CartItemRow` (зображення, назва, ціна, +/−, subtotal, видалення) та `CartPage` (`/cart`) з Breadcrumbs, списком товарів, Order Summary (totalPrice, кнопка «Оформити замовлення»), пустим станом. Utility `formatPrice` (`Intl.NumberFormat("uk-UA")`). Header і BottomNavigation ведуть на `/cart`.
 
 ---
 
 ## 25) Task #18 ✅ — Сторінка Checkout з валідацією та збереженням замовлення
 
-**Назва:** Реалізувати сторінку `/checkout` з формою, валідацією і backend для замовлень
+Виконано. Backend: таблиці `orders`/`order_items`, `POST /orders` з транзакцією. Frontend: `CheckoutPage` (`/checkout`) з формою (контакт, доставка, оплата), валідацією (`useCheckoutForm`), Order Summary, success/error/loading станами. Типи `CheckoutFormData`, `DELIVERY_METHODS`, `PAYMENT_METHODS`. API-сервіс `orderService.ts`.
 
-**Бекграунд (Блок D — Cart & Checkout, пункт 3 з бэклогу):**
+**Блок D (Cart & Checkout) повністю закритий. Переходимо до Блоку E (Auth/Profile/Admin).**
 
-Третій і **останній** крок Блоку D. Кошик працює (Task #16–17), юзер бачить свої товари і суму. Тепер потрібен фінальний крок — **оформлення замовлення**: юзер вводить контактні дані, обирає доставку/оплату, переглядає підсумок і натискає "Підтвердити".
+---
 
-Після цього таску **Блок D (Cart & Checkout) буде повністю закритий**. Наступний етап — Блок E (Auth/Profile/Admin).
+## 26) Task #19 — Backend auth foundation (users + JWT + register/login/me)
+
+**Назва:** Створити серверну інфраструктуру автентифікації: таблиця users, JWT, ендпоінти register/login/me, authMiddleware
+
+**Бекграунд (Блок E — Auth/Profile/Admin, backend фундамент):**
+
+Перший крок Блоку E. Все, що стосується auth на фронтенді (Login/Register сторінки, AuthContext, protected routes), потребує працюючого бекенду: ендпоінти реєстрації, логіну, перевірки токену. Без бекенд-фундаменту фронтенд auth — це mock-заглушки, які потребують переробки.
+
+Тому починаємо з бекенду. Після цього Task #20 побудує фронтенд auth на вже працюючому API.
 
 **Логіка (чому це робимо):**
 
-- **Checkout** — фінальна точка конверсії. Якщо тут все зрозуміло і зручно — юзер завершує покупку. Якщо ні — кидає кошик. За статистикою ~70% кошиків abandonment rate — і UX checkout є ключовим фактором.
-- **Серверне збереження** — замовлення має зберігатися в БД, а не тільки на клієнті. Потрібна таблиця `orders` і `order_items` (нормалізована структура: одне замовлення → багато позицій).
-- **Валідація** — ім'я, телефон, email, адреса доставки обов'язкові. Клієнтська валідація — перша лінія захисту (UX). Серверна валідація — обов'язкова (безпека), але зараз фокус на клієнтській.
-- **Single-page checkout** — для MVP не робимо multi-step wizard (крок 1 → крок 2 → крок 3). Одна сторінка з секціями — простіше для розробки і достатньо для навчального проєкту. Multi-step можна додати пізніше.
-- **Order Summary** — дублюємо summary з кошика на сторінці checkout. Юзер має бачити що він купує на кожному кроці.
+- **Таблиця `users`** — зберігає облікові записи. `email` як login (стандарт для e-commerce), `password_hash` (НІКОЛИ plaintext), `role` для розмежування user/admin.
+- **bcryptjs** — хешування паролів. Чому bcryptjs, а не bcrypt? Чиста JS-реалізація, не потребує нативної компіляції (працює у Docker без проблем із `node-gyp`). 10 раундів — баланс між безпекою та швидкістю.
+- **JWT (JSON Web Token)** — stateless автентифікація. Сервер не зберігає сесії, а видає підписаний токен. Клієнт передає токен у `Authorization: Bearer <token>` при кожному запиті. Чому JWT, а не сесії? Простіше для SPA (без cookies/CSRF проблем), масштабується горизонтально.
+- **authMiddleware** — перевіряє JWT перед доступом до захищених ресурсів. Витягує `userId` і `role` з токену і прикріплює до `req`. Перевикористовується у всіх захищених маршрутах.
+- **GET /auth/me** — фронтенд відновлює сесію при перезавантаженні: читає token з localStorage → GET /auth/me → отримує user info. Якщо токен expired — 401, фронтенд чистить state.
 
 **Scope:**
 
-- Backend: створити таблиці `orders` і `order_items`, endpoint `POST /orders`.
-- Frontend: сторінка `CheckoutPage` (`/checkout`) з формою.
-- Форма: контактні дані (ім'я, телефон, email), адреса доставки, спосіб доставки (select), спосіб оплати (radio).
-- Валідація: обов'язкові поля, формат телефону/email.
-- Order Summary: список товарів з кошика + підсумок.
-- При успішному замовленні: очистити кошик, показати confirmation (або redirect на success-сторінку).
-- **НЕ** робимо реальну оплату (mock).
-- **НЕ** робимо інтеграцію з Новою Поштою API (dropdown з типами доставки поки хардкод).
-- **НЕ** робимо guest checkout vs auth checkout (поки все guest — auth буде у Блоці E).
-- **НЕ** робимо multi-step wizard (одна сторінка).
+- Встановити `bcryptjs` + `jsonwebtoken` + `@types/bcryptjs` + `@types/jsonwebtoken`.
+- Додати `JWT_SECRET`, `JWT_EXPIRES_IN` у `backend/.env.example`.
+- Створити таблицю `users` у `runMigrations`.
+- Створити типи auth у `backend/src/types/auth.ts`.
+- Створити `backend/src/routes/auth.ts`: POST /auth/register, POST /auth/login, GET /auth/me.
+- Створити `backend/src/middleware/authMiddleware.ts`.
+- Підключити `authRouter` у `server.ts`.
+- **НЕ** створюємо фронтенд сторінки (буде в Task #20).
+- **НЕ** робимо refresh tokens (для MVP одного access token достатньо).
+- **НЕ** робимо email verification, password reset (post-MVP features).
 
 **Що зробити (покроково):**
 
-### Крок 1 — Створити таблиці `orders` та `order_items` у БД
+### Крок 1 — Встановити залежності
 
-- **Файл:** `backend/src/database.ts` (update — додати auto-migration).
-- **Таблиця `orders`:**
+- `bcryptjs` — хешування паролів (чиста JS, без native compilation).
+- `jsonwebtoken` — створення і верифікація JWT.
+- `@types/bcryptjs`, `@types/jsonwebtoken` — TypeScript типи.
+- Встановлювати у `backend/` директорії.
+
+### Крок 2 — Оновити `.env.example`
+
+- **Файл:** `backend/.env.example` (update).
+- Додати:
+  - `JWT_SECRET=your_jwt_secret_change_me` — секретний ключ для підпису JWT.
+  - `JWT_EXPIRES_IN=7d` — час життя токену (7 днів для MVP).
+- **Чому у `.env`, а не у коді?** Secret ніколи не хардкодиться. Кожне середовище (dev, staging, prod) має свій ключ.
+
+### Крок 3 — Створити таблицю `users`
+
+- **Файл:** `backend/src/database.ts` (update — додати у `runMigrations`).
+- **SQL:**
 
 ```sql
-CREATE TABLE IF NOT EXISTS orders (
+CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  customer_name VARCHAR(255) NOT NULL,
-  customer_phone VARCHAR(50) NOT NULL,
-  customer_email VARCHAR(255) NOT NULL,
-  delivery_method VARCHAR(50) NOT NULL,
-  delivery_address TEXT NOT NULL,
-  payment_method VARCHAR(50) NOT NULL,
-  total_price DECIMAL(10,2) NOT NULL,
-  status VARCHAR(50) DEFAULT 'pending',
+  name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('user', 'admin') DEFAULT 'user',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
 
-- **Таблиця `order_items`:**
+- **Чому `ENUM('user', 'admin')`?** Обмежує допустимі значення на рівні БД. Не можна записати `role = 'superadmin'` через SQL injection або баг — БД відхилить.
+- **Чому `UNIQUE` на email?** Один акаунт = один email. БД гарантує унікальність навіть при race condition.
+- **Важливо:** `CREATE TABLE IF NOT EXISTS` — ідемпотентна міграція. Додати **перед** міграціями cards (users мають існувати раніше за можливі FK).
 
-```sql
-CREATE TABLE IF NOT EXISTS order_items (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  order_id INT NOT NULL,
-  product_id INT NOT NULL,
-  title VARCHAR(255) NOT NULL,
-  price DECIMAL(10,2) NOT NULL,
-  quantity INT NOT NULL,
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
-);
-```
+### Крок 4 — Створити типи auth
 
-- **Чому `title` і `price` в `order_items`?** Снепшот на момент замовлення. Якщо товар перейменують або змінять ціну — старі замовлення мають зберігати оригінальні дані.
-- **Чому `status`?** Мінімальний lifecycle: `pending` → `confirmed` → `shipped` → `completed`. Зараз все буде `pending`, але поле готове для розширення.
-
-### Крок 2 — Створити backend endpoint `POST /orders`
-
-- **Файл:** `backend/src/routes/orders.ts` (create).
-- **Request body:**
+- **Файл:** `backend/src/types/auth.ts` (create).
+- Створи типи/інтерфейси:
 
 ```typescript
-interface CreateOrderBody {
+export interface RegisterBody {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginBody {
+  email: string;
+  password: string;
+}
+
+export interface JwtPayload {
+  userId: number;
+  role: string;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    id: number;
+    role: string;
+  };
+}
+```
+
+- **Чому окремий файл типів?** Типи перевикористовуються в routes, middleware. Одна точка правди для auth-інтерфейсів.
+
+### Крок 5 — Створити `authMiddleware`
+
+- **Файл:** `backend/src/middleware/authMiddleware.ts` (create).
+- **Логіка:**
+  1. Зчитати заголовок `Authorization` з request.
+  2. Перевірити формат `Bearer <token>`.
+  3. Верифікувати token через `jwt.verify(token, JWT_SECRET)`.
+  4. Декодувати payload → `{ userId, role }`.
+  5. Прикріпити до `req.user = { id: userId, role }`.
+  6. Викликати `next()`.
+  7. Якщо токен відсутній, невалідний або expired → `401 Unauthorized`.
+- **Чому middleware, а не перевірка в кожному route?** DRY. Middleware підключається одним рядком: `router.get("/me", authMiddleware, handler)`.
+
+### Крок 6 — Створити auth routes
+
+- **Файл:** `backend/src/routes/auth.ts` (create).
+
+**POST /auth/register:**
+1. Зчитати `name`, `email`, `password` з body.
+2. Валідація: всі поля обов'язкові, email формат (базовий regexp), password мінімум 6 символів.
+3. Перевірити: email вже існує? → `409 Conflict`.
+4. Хешувати пароль: `bcrypt.hash(password, 10)`.
+5. INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?).
+6. Згенерувати JWT: `jwt.sign({ userId: insertId, role: 'user' }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN })`.
+7. Відповідь: `201 Created { token, user: { id, name, email, role } }`.
+
+**POST /auth/login:**
+1. Зчитати `email`, `password` з body.
+2. Знайти user по email: SELECT * FROM users WHERE email = ?.
+3. Якщо user не знайдений → `401 Unauthorized` (не казати "email не знайдений" — information disclosure).
+4. Порівняти пароль: `bcrypt.compare(password, user.password_hash)`.
+5. Якщо не збігається → `401 Unauthorized`.
+6. Згенерувати JWT.
+7. Відповідь: `200 OK { token, user: { id, name, email, role } }`.
+
+**GET /auth/me:**
+1. authMiddleware перевіряє токен і прикріплює `req.user`.
+2. По `req.user.id` зробити SELECT id, name, email, role, created_at FROM users WHERE id = ? (без password_hash!).
+3. Відповідь: `200 OK { id, name, email, role, created_at }`.
+
+### Крок 7 — Підключити у `server.ts`
+
+- **Файл:** `backend/src/server.ts` (update).
+- Додати: `import authRouter from "./routes/auth"` та `app.use("/auth", authRouter)`.
+
+**Файли для створення/змін:**
+
+| Файл | Дія |
+| --- | --- |
+| `backend/src/routes/auth.ts` | **create** |
+| `backend/src/types/auth.ts` | **create** |
+| `backend/src/middleware/authMiddleware.ts` | **create** |
+| `backend/src/database.ts` | update |
+| `backend/.env.example` | update |
+| `backend/src/server.ts` | update |
+
+**Критерії приймання:**
+
+- Таблиця `users` створюється при старті backend (ідемпотентно).
+- `POST /auth/register` з валідними даними → `201 { token, user }`.
+- `POST /auth/register` з існуючим email → `409 Conflict`.
+- `POST /auth/register` з порожніми полями → `400 Bad Request`.
+- `POST /auth/login` з правильними credentials → `200 { token, user }`.
+- `POST /auth/login` з невірним паролем або email → `401 Unauthorized`.
+- `GET /auth/me` з валідним token → `200 { id, name, email, role, created_at }`.
+- `GET /auth/me` без token → `401`.
+- `GET /auth/me` з expired/invalid token → `401`.
+- Password зберігається як bcrypt hash (не plaintext).
+- JWT містить `userId` та `role`.
+- `JWT_SECRET` і `JWT_EXPIRES_IN` зчитуються з `.env`.
+- Немає `any`, TypeScript strict.
+
+---
+
+## 27) Task #20 ✅ — Login/Register сторінки + AuthContext + protected routes
+
+**Назва:** Фронтенд автентифікація: AuthContext, Login/Register сторінки, ProtectedRoute, інтеграція токену в api.ts
+
+**Бекграунд (Блок E — Auth/Profile/Admin, фронтенд auth):**
+
+Другий крок Блоку E. Backend auth (Task #19) готовий: є ендпоінти register/login/me, JWT, authMiddleware. Тепер фронтенд має: 1) зберігати стан авторизованого юзера, 2) надати UI для входу/реєстрації, 3) захистити приватні маршрути, 4) передавати токен у кожному API-запиті.
+
+Цей таск об'єднує AuthContext + Login/Register + protected routes, бо вони тісно пов'язані: Login сторінка викликає `login()` з AuthContext, protected routes перевіряють `isAuthenticated` з AuthContext.
+
+Після цього таску: юзер може зареєструватися, увійти, побачити що він авторизований. Task #21 додасть серверну прив'язку замовлень до юзера, Task #22 — сторінку профілю.
+
+**Логіка (чому це робимо):**
+
+- **AuthContext** — глобальний стан авторизації. Аналогічно AppContext для кошика, але для user/token. Чому Context, а не Zustand? Для auth одного рівня складності React Context достатній.
+- **Token в localStorage** — при перезавантаженні сторінки юзер не повинен логінитися заново. localStorage зберігає token між сесіями. При mount: якщо token є → GET /auth/me → відновити user state.
+- **api.ts інтеграція** — токен має автоматично додаватися до КОЖНОГО API-запиту через `Authorization: Bearer <token>`. Одна точка інтеграції в `request()` функції — не дублюємо логіку в кожному сервісі.
+- **ProtectedRoute** — компонент-обгортка для маршрутів, доступних тільки авторизованим юзерам (/profile, /checkout при потребі). Redirect на /login якщо не авторизований.
+- **Умовний UI** — Header і BottomNavigation мають відображати різний стан: гість бачить "Увійти", авторизований юзер бачить іконку профілю/ім'я.
+
+**Scope:**
+
+- Створити тип `User` у `frontend/src/types/user.ts`.
+- Створити `AuthContext` з login/register/logout/user/isAuthenticated/isLoading.
+- Створити `authService.ts` з API-функціями.
+- Інтегрувати token у `api.ts` (Authorization header).
+- Створити `LoginPage` (`/login`) з формою і валідацією.
+- Створити `RegisterPage` (`/register`) з формою і валідацією.
+- Створити `ProtectedRoute` компонент.
+- Додати маршрути `/login`, `/register` у `AppRoutes`.
+- Оновити Header: умовний рендер (Login vs Profile).
+- Оновити BottomNavigation: увімкнути Profile tab.
+- Обгорнути App у `AuthProvider`.
+- **НЕ** робимо "Запам'ятати мене" checkbox (token і так в localStorage).
+- **НЕ** робимо OAuth (Google/GitHub login) — post-MVP.
+- **НЕ** робимо password strength indicator — post-MVP.
+
+**Що зробити (покроково):**
+
+### Крок 1 — Створити тип `User`
+
+- **Файл:** `frontend/src/types/user.ts` (create).
+
+```typescript
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: 'user' | 'admin';
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+```
+
+- **Чому окремий файл?** User — не Cart, не Card. Різна доменна модель → різний файл (SRP).
+
+### Крок 2 — Створити `authService`
+
+- **Файл:** `frontend/src/services/authService.ts` (create).
+- Функції:
+  - `registerUser(name, email, password): Promise<AuthResponse>` → POST /auth/register.
+  - `loginUser(email, password): Promise<AuthResponse>` → POST /auth/login.
+  - `fetchCurrentUser(): Promise<User>` → GET /auth/me.
+- Використовує `apiPost`/`apiGet` з `api.ts`.
+- **Чому сервіс, а не прямі fetch у компонентах?** Ізоляція API-логіки. Якщо ендпоінт зміниться — правимо один файл.
+
+### Крок 3 — Інтегрувати token у `api.ts`
+
+- **Файл:** `frontend/src/services/api.ts` (update).
+- У функції `request()` — зчитати token з localStorage (`botano_token`), додати заголовок `Authorization: Bearer ${token}` якщо token існує.
+- **Чому тут, а не в AuthContext?** api.ts — єдина точка для всіх HTTP-запитів. Додавання header тут гарантує, що КОЖЕН запит (cards, orders, auth/me) автоматично авторизований.
+- **Важливо:** token читається з localStorage при КОЖНОМУ запиті (не кешується у змінній). Це гарантує актуальний token після login/logout без потреби оновлювати стан.
+
+### Крок 4 — Створити `AuthContext`
+
+- **Файл:** `frontend/src/context/AuthContext.tsx` (create).
+- **Тип контексту:**
+
+```typescript
+type AuthContextType = {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  logout: () => void;
+};
+```
+
+- **Ініціалізація:** при mount перевіряє localStorage на наявність token. Якщо є → `fetchCurrentUser()` → встановити user. Якщо token невалідний → очистити localStorage. `isLoading = true` поки перевірка не завершиться (запобігає flash of login page).
+- **login():** викликає `loginUser()` → зберігає token у localStorage → встановлює user у state.
+- **register():** викликає `registerUser()` → зберігає token → встановлює user.
+- **logout():** очищує token з localStorage → встановлює user = null.
+- **Ключ localStorage:** `botano_token` — з префіксом проєкту (як `botano_cart`).
+
+### Крок 5 — Створити `LoginPage`
+
+- **Файл:** `frontend/src/pages/LoginPage.tsx` (create).
+- **Маршрут:** `/login`.
+- **UI (mobile-first, dark theme):**
+  - Заголовок: "Вхід" або "Увійти до акаунту".
+  - Поля: email (`type="email"`), password (`type="password"`).
+  - Кнопка "Увійти": `bg-violet-600 hover:bg-violet-700 w-full py-3 rounded-xl`.
+  - Помилка: червоний блок під формою якщо credentials невірні.
+  - Loading state на кнопці при запиті.
+  - Посилання: "Немає акаунту? Зареєструватися" → `/register`.
+- **Валідація:**
+  - Email: обов'язкове, базовий формат.
+  - Password: обов'язкове, мінімум 6 символів.
+- **Після логіну:** redirect на попередню сторінку або `/` (використай `useNavigate` + `location.state`).
+- **Guard:** якщо юзер вже авторизований → redirect на `/profile`.
+
+### Крок 6 — Створити `RegisterPage`
+
+- **Файл:** `frontend/src/pages/RegisterPage.tsx` (create).
+- **Маршрут:** `/register`.
+- **UI:** аналогічний LoginPage, але з полями:
+  - Ім'я (`type="text"`, мінімум 2 символи).
+  - Email.
+  - Пароль (мінімум 6 символів).
+  - Підтвердження паролю (має збігатися з паролем).
+- Кнопка "Зареєструватися".
+- Помилка: "Email вже зайнятий" якщо 409.
+- Посилання: "Вже є акаунт? Увійти" → `/login`.
+- **Після реєстрації:** автоматичний вхід + redirect на `/`.
+
+### Крок 7 — Створити `ProtectedRoute`
+
+- **Файл:** `frontend/src/components/ProtectedRoute.tsx` (create).
+- **Логіка:**
+  - Якщо `isLoading` → показати spinner/skeleton (не redirect!).
+  - Якщо `!isAuthenticated` → `<Navigate to="/login" state={{ from: location }} />`.
+  - Якщо `isAuthenticated` → рендерити `<Outlet />` або `children`.
+- **Чому компонент, а не HOC?** Composition pattern краще вписується у React Router v7 (`<Route element={<ProtectedRoute />}>`).
+
+### Крок 8 — Оновити маршрути
+
+- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
+- Додати:
+  - `{ path: "login", element: <LoginPage /> }`.
+  - `{ path: "register", element: <RegisterPage /> }`.
+  - `{ path: "profile", element: <ProtectedRoute><ProfilePlaceholder /></ProtectedRoute> }` — тимчасова заглушка до Task #22.
+- Видалити закоментований `/login` роут.
+
+### Крок 9 — Оновити Header
+
+- **Файл:** `frontend/src/layouts/Header.tsx` (update).
+- Імпортувати `useAuth` (або `useAuthContext`).
+- Умовний рендер:
+  - **Не авторизований:** іконка `User` → `<Link to="/login">`, aria-label "Увійти".
+  - **Авторизований:** іконка `User` → `<Link to="/profile">`, aria-label "Профіль (Ім'я)".
+- Опціонально: показувати ім'я юзера поруч з іконкою на desktop.
+
+### Крок 10 — Оновити BottomNavigation
+
+- **Файл:** `frontend/src/layouts/BottomNavigation.tsx` (update).
+- Увімкнути Profile tab (`enabled: true`).
+- Лінк: якщо авторизований → `/profile`, якщо ні → `/login`.
+
+### Крок 11 — Обгорнути App у AuthProvider
+
+- **Файл:** `frontend/src/App.tsx` (update).
+- Обгорнути `<AppRoutes />` у `<AuthProvider>` (аналогічно `<AppProvider>`).
+- `AuthProvider` має бути всередині `AppProvider` або навпаки — залежно від того, чи потребують вони одне одного. Поки незалежні → порядок не критичний.
+
+**Файли для створення/змін:**
+
+| Файл | Дія |
+| --- | --- |
+| `frontend/src/types/user.ts` | **create** |
+| `frontend/src/services/authService.ts` | **create** |
+| `frontend/src/context/AuthContext.tsx` | **create** |
+| `frontend/src/pages/LoginPage.tsx` | **create** |
+| `frontend/src/pages/RegisterPage.tsx` | **create** |
+| `frontend/src/components/ProtectedRoute.tsx` | **create** |
+| `frontend/src/services/api.ts` | update |
+| `frontend/src/routes/AppRoutes.tsx` | update |
+| `frontend/src/layouts/Header.tsx` | update |
+| `frontend/src/layouts/BottomNavigation.tsx` | update |
+| `frontend/src/App.tsx` | update |
+
+**Критерії приймання:**
+
+- AuthContext надає user/token/isAuthenticated/isLoading/login/register/logout.
+- Token зберігається в localStorage (`botano_token`), відновлюється при mount.
+- api.ts автоматично додає `Authorization: Bearer <token>` до кожного запиту.
+- LoginPage: форма з валідацією, реальна авторизація через API, помилки відображаються, redirect після логіну.
+- RegisterPage: форма з валідацією (name/email/password/confirm), реальна реєстрація, автоматичний вхід, помилка "email зайнятий".
+- ProtectedRoute: redirect на /login якщо не авторизований, spinner під час перевірки.
+- Guard: авторизований юзер не бачить /login, /register (redirect на /profile).
+- Header: умовний рендер Login vs Profile.
+- BottomNavigation: Profile tab увімкнений.
+- При logout: token видаляється, UI оновлюється.
+- Немає `any`, TypeScript strict.
+
+---
+
+## 28) Task #21 ✅ — Backend orders auth integration (user_id + GET /orders)
+
+**Назва:** Зв'язати замовлення з авторизованими юзерами, додати ендпоінти для отримання замовлень
+
+**Бекграунд (Блок E — Auth/Profile/Admin, orders + auth зв'язка):**
+
+Третій крок Блоку E. Auth працює (Tasks #19–20). Зараз замовлення (`orders`) не прив'язані до юзерів — будь-хто може створити замовлення, і немає способу отримати "мої замовлення". Для Profile/OrderHistory (Task #22) потрібно:
+1. Зберігати `user_id` при створенні замовлення.
+2. Надати ендпоінт для отримання замовлень конкретного юзера.
+3. Надати ендпоінт для деталей одного замовлення.
+
+**Логіка (чому це робимо):**
+
+- **user_id в orders** — прив'язка замовлення до юзера. Nullable, бо: 1) існуючі замовлення (до auth) не мають юзера, 2) guest checkout має залишатися можливим.
+- **Опціональний authMiddleware на POST /orders** — якщо юзер авторизований → зберігаємо user_id. Якщо ні → замовлення створюється як guest. Не блокуємо гостей, але персоналізуємо для авторизованих.
+- **GET /orders** — авторизований юзер отримує тільки СВОЇ замовлення. Обов'язковий authMiddleware. Без auth → 401.
+- **GET /orders/:id** — деталі одного замовлення (з позиціями). Перевірка ownership: юзер бачить тільки свої замовлення.
+
+**Scope:**
+
+- Додати колонку `user_id` до таблиці `orders` (nullable FK → users).
+- Оновити `POST /orders`: зберігати user_id якщо авторизований.
+- Створити `GET /orders`: список замовлень авторизованого юзера.
+- Створити `GET /orders/:id`: деталі замовлення з позиціями (з перевіркою ownership).
+- Оновити frontend `CheckoutPage`: передавати token при оформленні (вже працює через api.ts).
+- **НЕ** робимо admin перегляд всіх замовлень (post-MVP).
+- **НЕ** робимо зміну статусу замовлення з клієнта (admin feature).
+
+**Що зробити (покроково):**
+
+### Крок 1 — Додати `user_id` до таблиці `orders`
+
+- **Файл:** `backend/src/database.ts` (update — додати міграцію).
+- Додати ідемпотентну міграцію (перевірка SHOW COLUMNS перед ALTER):
+
+```sql
+ALTER TABLE orders ADD COLUMN user_id INT DEFAULT NULL;
+ALTER TABLE orders ADD CONSTRAINT fk_orders_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL;
+```
+
+- **Чому `ON DELETE SET NULL`, а не `CASCADE`?** При видаленні юзера замовлення мають залишатися (для бухгалтерії/статистики), але `user_id` стане NULL.
+- **Чому окремий ALTER, а не зміна CREATE TABLE?** Таблиця вже існує з даними. ALTER додає колонку до існуючої таблиці.
+
+### Крок 2 — Створити опціональний auth middleware
+
+- **Файл:** `backend/src/middleware/optionalAuthMiddleware.ts` (create) або додати як експорт з `authMiddleware.ts`.
+- **Логіка:** як authMiddleware, але при відсутності/невалідності токену — НЕ повертає 401, а просто `next()` без `req.user`.
+- **Чому окремий middleware?** POST /orders має працювати і з auth, і без. Стандартний authMiddleware поверне 401 для гостей, що зламає guest checkout.
+
+### Крок 3 — Оновити `POST /orders`
+
+- **Файл:** `backend/src/routes/orders.ts` (update).
+- Підключити `optionalAuthMiddleware` до POST /.
+- Якщо `req.user` існує → INSERT orders з `user_id = req.user.id`.
+- Якщо `req.user` відсутній → INSERT orders з `user_id = NULL`.
+
+### Крок 4 — Створити `GET /orders`
+
+- **Файл:** `backend/src/routes/orders.ts` (update).
+- authMiddleware обов'язковий.
+- SQL: `SELECT o.*, COUNT(oi.id) as items_count FROM orders o LEFT JOIN order_items oi ON o.id = oi.order_id WHERE o.user_id = ? GROUP BY o.id ORDER BY o.created_at DESC`.
+- Відповідь: масив `{ id, total_price, status, created_at, items_count }`.
+
+### Крок 5 — Створити `GET /orders/:id`
+
+- **Файл:** `backend/src/routes/orders.ts` (update).
+- authMiddleware обов'язковий.
+- SQL: SELECT order WHERE id = ? AND user_id = req.user.id.
+- Якщо не знайдено → 404 (не розкриваємо чи замовлення існує — ownership check).
+- Додатково: SELECT order_items WHERE order_id = id.
+- Відповідь: `{ ...order, items: [...] }`.
+
+**Файли для створення/змін:**
+
+| Файл | Дія |
+| --- | --- |
+| `backend/src/middleware/optionalAuthMiddleware.ts` | **create** |
+| `backend/src/database.ts` | update |
+| `backend/src/routes/orders.ts` | update |
+
+**Критерії приймання:**
+
+- Колонка `user_id` додана до `orders` (nullable, FK → users).
+- `POST /orders` з авторизованим юзером → `user_id` зберігається.
+- `POST /orders` без авторизації → `user_id = NULL`, замовлення створюється (guest checkout працює).
+- `GET /orders` з токеном → повертає тільки замовлення поточного юзера.
+- `GET /orders` без токену → `401`.
+- `GET /orders/:id` з токеном → повертає замовлення з позиціями (якщо належить юзеру).
+- `GET /orders/:id` чужого замовлення → `404`.
+- Міграція ідемпотентна (повторний запуск не падає).
+- Немає `any`, TypeScript strict.
+
+---
+
+## 29) Task #22 ✅ — Profile + OrderHistory
+
+**Назва:** Створити сторінку профілю з інформацією про юзера та історією замовлень
+
+**Бекграунд (Блок E — Auth/Profile/Admin, фронтенд профіль):**
+
+Четвертий крок Блоку E. Auth працює (Tasks #19–20), замовлення прив'язані до юзерів (Task #21). Тепер потрібен UI для авторизованого юзера: сторінка профілю з особистою інформацією та історією замовлень.
+
+Це реалізує Етап 5 з DoD: "Профіль, історія замовлень, wishlist доступні авторизованому юзеру" (wishlist — post-MVP, відкладаємо).
+
+**Логіка (чому це робимо):**
+
+- **ProfilePage** — авторизований юзер хоче бачити: своє ім'я, email, коли зареєструвався, і головне — **історію замовлень**. Без цієї сторінки auth не має практичної цінності для юзера.
+- **OrderHistory** — список замовлень з основною інформацією: номер, дата, статус, сума. Клік розгортає деталі (або окрема сторінка). Це дає юзеру відчуття контролю над своїми покупками.
+- **Order status badges** — візуальне розрізнення статусів: pending (жовтий), confirmed (синій), shipped (фіолетовий), completed (зелений). Стандарт e-commerce UX.
+- **Logout** — кнопка виходу на сторінці профілю. Очевидне місце для цієї дії.
+
+**Scope:**
+
+- Створити типи замовлень у `frontend/src/types/order.ts`.
+- Оновити `orderService.ts`: додати `fetchOrders()` і `fetchOrderById()`.
+- Створити компонент `OrderHistory`.
+- Створити сторінку `ProfilePage` (`/profile`).
+- Підключити маршрут `/profile` з ProtectedRoute у AppRoutes.
+- **НЕ** робимо редагування профілю (зміна імені, email) — post-MVP.
+- **НЕ** робимо wishlist на ProfilePage — post-MVP.
+- **НЕ** робимо окрему сторінку для деталей замовлення — використовуємо expandable list.
+
+**Що зробити (покроково):**
+
+### Крок 1 — Створити типи замовлень
+
+- **Файл:** `frontend/src/types/order.ts` (create).
+
+```typescript
+export interface OrderSummary {
+  id: number;
+  total_price: number;
+  status: string;
+  created_at: string;
+  items_count: number;
+}
+
+export interface OrderDetail extends OrderSummary {
   customer_name: string;
   customer_phone: string;
   customer_email: string;
   delivery_method: string;
   delivery_address: string;
   payment_method: string;
-  items: Array<{
-    product_id: number;
-    title: string;
-    price: number;
-    quantity: number;
-  }>;
-}
-```
-
-- **Логіка:**
-  1. Валідація: перевірити що `items` не порожній, обов'язкові поля заповнені.
-  2. Обчислити `total_price` = `sum(price * quantity)` по всіх items.
-  3. В **транзакції**: INSERT в `orders` → отримати `insertId` → INSERT кожен item в `order_items` з `order_id`.
-  4. Відповідь: `201 Created` з `{ id: orderId, status: "pending" }`.
-- **Чому транзакція?** Якщо INSERT в `order_items` зламається на третьому елементі — замовлення в `orders` не повинно залишитися без повного списку товарів. Транзакція гарантує атомарність.
-- **Файл:** `backend/src/server.ts` (update).
-- Підключити: `app.use("/orders", ordersRouter)`.
-
-### Крок 3 — Створити типи для Checkout
-
-- **Файл:** `frontend/src/types/checkout.ts` (create).
-- Створити:
-
-```typescript
-export interface CheckoutFormData {
-  customerName: string;
-  customerPhone: string;
-  customerEmail: string;
-  deliveryMethod: string;
-  deliveryAddress: string;
-  paymentMethod: string;
+  items: OrderDetailItem[];
 }
 
-export const DELIVERY_METHODS = [
-  { value: "nova_poshta", label: "Нова Пошта (відділення)" },
-  { value: "nova_poshta_courier", label: "Нова Пошта (кур'єр)" },
-  { value: "ukrposhta", label: "Укрпошта" },
-  { value: "pickup", label: "Самовивіз" },
-] as const;
+export interface OrderDetailItem {
+  id: number;
+  product_id: number;
+  title: string;
+  price: number;
+  quantity: number;
+}
 
-export const PAYMENT_METHODS = [
-  { value: "card_on_delivery", label: "Картою при отриманні" },
-  { value: "cash_on_delivery", label: "Готівкою при отриманні" },
-  { value: "card_online", label: "Оплата онлайн (картка)" },
-] as const;
+export const ORDER_STATUS_MAP: Record<string, { label: string; color: string }> = {
+  pending: { label: "Очікує", color: "bg-yellow-500/20 text-yellow-400" },
+  confirmed: { label: "Підтверджено", color: "bg-blue-500/20 text-blue-400" },
+  shipped: { label: "Відправлено", color: "bg-violet-500/20 text-violet-400" },
+  completed: { label: "Виконано", color: "bg-emerald-500/20 text-emerald-400" },
+};
 ```
 
-### Крок 4 — Створити API-сервіс для замовлень
+### Крок 2 — Оновити `orderService.ts`
 
-- **Файл:** `frontend/src/services/orderService.ts` (create).
-- Функція `createOrder(data): Promise<{ id: number; status: string }>`.
-- Збирає дані форми + items з кошика → POST `/orders`.
+- **Файл:** `frontend/src/services/orderService.ts` (update).
+- Додати функції:
+  - `fetchOrders(): Promise<OrderSummary[]>` → GET /orders.
+  - `fetchOrderById(id: number): Promise<OrderDetail>` → GET /orders/:id.
+- Існуючий `createOrder()` залишити без змін.
 
-### Крок 5 — Створити хук валідації `useCheckoutForm`
+### Крок 3 — Створити `OrderHistory`
 
-- **Файл:** `frontend/src/hooks/useCheckoutForm.ts` (create).
-- Хук інкапсулює:
-  - Стан форми (`formData`).
-  - Помилки валідації (`errors: Record<string, string>`).
-  - `handleChange(field, value)` — оновлює поле і знімає помилку.
-  - `validate(): boolean` — перевіряє всі поля, повертає `true` якщо валідна.
-- **Правила валідації:**
-  - `customerName`: не порожнє, мінімум 2 символи.
-  - `customerPhone`: не порожнє, відповідає UA-формату (`/^\+?3?8?0\d{9}$/` або простіше — мінімум 10 цифр).
-  - `customerEmail`: не порожнє, базовий email regexp (`/.+@.+\..+/`).
-  - `deliveryMethod`: обрано (не порожнє).
-  - `deliveryAddress`: не порожнє (мінімум 5 символів). Якщо `deliveryMethod === "pickup"` — можна не вимагати.
-  - `paymentMethod`: обрано (не порожнє).
-- **Чому хук, а не логіка в компоненті?** SRP — компонент рендерить UI, хук обробляє бізнес-логіку форми. Хук можна тестувати окремо.
+- **Файл:** `frontend/src/components/OrderHistory.tsx` (create).
+- **Props:** немає (компонент сам завантажує дані через `fetchOrders()`).
+- **Стани:**
+  - Loading: skeleton-список (3-4 рядки).
+  - Empty: "У вас ще немає замовлень" + іконка Package + кнопка "До каталогу".
+  - Error: повідомлення + кнопка "Спробувати ще".
+  - Data: список замовлень.
+- **Елемент списку (кожне замовлення):**
+  - Номер замовлення: `#${order.id}`.
+  - Дата: `new Date(order.created_at).toLocaleDateString("uk-UA")`.
+  - Status badge: колір + текст з `ORDER_STATUS_MAP`.
+  - Сума: `formatPrice(order.total_price)`.
+  - Кількість товарів: `order.items_count`.
+  - Expandable: клік розгортає деталі (завантажує `fetchOrderById`).
+- **Деталі (expanded):**
+  - Список позицій: назва × кількість = subtotal.
+  - Спосіб доставки, оплати.
+- **Семантика:** `<ul>` / `<li>`, `<details>` або custom expand.
 
-### Крок 6 — Створити сторінку `CheckoutPage`
+### Крок 4 — Створити `ProfilePage`
 
-- **Файл:** `frontend/src/pages/CheckoutPage.tsx` (create).
-- **Guard:** якщо кошик порожній — redirect на `/cart` (або показати "Кошик порожній, оформлення неможливе").
+- **Файл:** `frontend/src/pages/ProfilePage.tsx` (create).
+- **Маршрут:** `/profile` (ProtectedRoute).
 - **Layout (mobile-first):**
-  1. **Breadcrumbs:** "Головна > Кошик > Оформлення".
-  2. **Заголовок:** `<h1>Оформлення замовлення</h1>`.
-  3. **Mobile:** одна колонка — форма зверху, summary знизу.
-  4. **Desktop (md+):** grid `md:grid-cols-[1fr_380px]` — форма зліва, summary справа (sticky).
-- **Секція "Контактні дані":**
-  - Input: Ім'я (`text`), Телефон (`tel`), Email (`email`).
-  - Кожен input: `label` + `input` + `error message`.
-  - Стилі: `bg-gray-800 border-gray-700 rounded-lg text-white focus:border-violet-500`.
-  - Помилки: `text-red-400 text-sm mt-1`.
-- **Секція "Доставка":**
-  - `<select>` або radio-група з `DELIVERY_METHODS`.
-  - Input: Адреса доставки (textarea або text input). Ховається при `pickup`.
-- **Секція "Оплата":**
-  - Radio-група з `PAYMENT_METHODS`.
-- **Order Summary (sidebar / bottom):**
-  - Стисний список товарів: назва × кількість = subtotal.
-  - Загальна сума: `totalPrice` грн.
-  - Кількість товарів.
-- **Кнопка "Підтвердити замовлення":**
-  - `bg-violet-600 hover:bg-violet-700 w-full py-3 rounded-xl text-lg font-semibold`.
-  - При натисканні: `validate()` → якщо OK → `createOrder(...)` → при успіху: `clearCart()` + показати success state.
-  - Loading state: кнопка `disabled`, показує спінер або текст "Оформлення...".
-- **Success state:** після успішного замовлення — показати "Замовлення #123 створено!" з іконкою `CheckCircle`, кнопкою "На головну" або "До каталогу". Можна зробити inline (замінити форму) або redirect на `/order-success/:id`.
-- **Error state:** якщо `POST /orders` повернув помилку — показати toast або inline error.
+  1. **Breadcrumbs:** "Головна > Профіль".
+  2. **Заголовок:** "Мій профіль".
+  3. **User Info Card:**
+     - Ім'я, email, роль (badge якщо admin).
+     - Дата реєстрації: `Зареєстрований з ...`.
+     - Кнопка "Вийти": `text-red-400 hover:text-red-300`, іконка `LogOut`.
+  4. **Order History секція:**
+     - Заголовок: "Мої замовлення".
+     - Компонент `OrderHistory`.
+  5. **Desktop (md+):** grid `md:grid-cols-[280px_1fr]` — info зліва (sticky), orders справа.
 
-### Крок 7 — Додати маршрут `/checkout` у AppRoutes
+### Крок 5 — Підключити маршрут
 
 - **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
-- Додати: `{ path: "checkout", element: <CheckoutPage /> }`.
+- Замінити placeholder ProfilePage на реальний компонент.
+- Маршрут `/profile` → `ProtectedRoute` → `ProfilePage`.
 
 **Файли для створення/змін:**
 
-| Файл                                          | Дія        |
-| --------------------------------------------- | ---------- |
-| `backend/src/routes/orders.ts`               | **create** |
-| `frontend/src/pages/CheckoutPage.tsx`        | **create** |
-| `frontend/src/types/checkout.ts`             | **create** |
-| `frontend/src/services/orderService.ts`      | **create** |
-| `frontend/src/hooks/useCheckoutForm.ts`      | **create** |
-| `backend/src/database.ts`                    | update     |
-| `backend/src/server.ts`                      | update     |
-| `frontend/src/routes/AppRoutes.tsx`          | update     |
+| Файл | Дія |
+| --- | --- |
+| `frontend/src/types/order.ts` | **create** |
+| `frontend/src/components/OrderHistory.tsx` | **create** |
+| `frontend/src/pages/ProfilePage.tsx` | **create** |
+| `frontend/src/services/orderService.ts` | update |
+| `frontend/src/routes/AppRoutes.tsx` | update |
 
 **Критерії приймання:**
 
-- Таблиці `orders` та `order_items` створюються при старті backend.
-- `POST /orders` з валідним body → 201 з `{ id, status: "pending" }`.
-- `POST /orders` з порожнім `items` → 400 з повідомленням.
-- Маршрут `/checkout` працює, сторінка рендериться.
-- Якщо кошик порожній — redirect на `/cart` або повідомлення.
-- Форма: ім'я, телефон, email, доставка, адреса, оплата — все відображається.
-- Валідація: порожні поля підсвічуються, невалідний телефон/email — повідомлення.
-- Адреса ховається при виборі "Самовивіз".
-- Order Summary: список товарів з кошика, загальна сума.
-- "Підтвердити замовлення" → POST → очищення кошика → success state.
-- Loading state на кнопці під час запиту.
-- Error state якщо API поверне помилку.
-- Breadcrumbs: "Головна > Кошик > Оформлення".
-- Mobile-first: одна колонка, summary знизу. Desktop: sidebar справа.
-- Семантичний HTML: `<form>`, `<fieldset>`, `<label>`, `<h1>`, `<h2>` для секцій.
+- ProfilePage відображає ім'я, email, роль, дату реєстрації.
+- Кнопка "Вийти" очищає auth state і redirectить на `/`.
+- OrderHistory завантажує і відображає замовлення юзера.
+- Loading/empty/error стани оброблені.
+- Status badges з правильними кольорами (pending/confirmed/shipped/completed).
+- Expand/collapse деталей замовлення працює.
+- Деталі показують список товарів, суму, спосіб доставки/оплати.
+- ProtectedRoute: redirect на /login якщо не авторизований.
+- BottomNavigation Profile tab працює.
+- formatPrice використовується для цін.
+- Mobile-first: одна колонка, desktop — sidebar + content.
+- Breadcrumbs: "Головна > Профіль".
 - Немає `any`, TypeScript strict.
 
 ---
 
-**Після завершення Tasks #16–#18 Блок D (Cart & Checkout) повністю закритий. Наступний етап — Блок E (Auth/Profile/Admin): Tasks #19+.**
+## 30) Task #23 ✅ — Admin CRUD для товарів
+
+**Назва:** Створити адмін-панель для керування каталогом товарів з ролевим захистом
+
+**Бекграунд (Блок E — Auth/Profile/Admin, фінальний таск):**
+
+П'ятий і **останній** крок Блоку E. Auth працює, профіль є, замовлення прив'язані до юзерів. Зараз CRUD-форми для товарів (`AddProductForm`, `EditProductModal`, `DeleteButton`) живуть на Home сторінці — доступні **будь-кому** без авторизації. Це потрібно виправити:
+1. Перенести CRUD за admin-only доступ.
+2. Захистити backend ендпоінти (POST/PUT/DELETE /cards) middleware.
+3. Створити виділену адмін-панель.
+
+Після цього таску **Блок E (Auth/Profile/Admin) повністю закритий**.
+
+**Логіка (чому це робимо):**
+
+- **Розмежування ролей** — ключовий принцип безпеки. Звичайний юзер не повинен мати можливості додавати/видаляти товари. Це привілей адміна.
+- **adminMiddleware** — серверна перевірка ролі. Навіть якщо хтось обійде фронтенд (curl, Postman) — бекенд відхилить запит з `403 Forbidden`. Ніколи не покладайся тільки на фронтенд для безпеки.
+- **AdminRoute** — фронтенд guard. Якщо юзер не admin → redirect з повідомленням. Це UX-захист (не показувати недоступний UI), а не security (бекенд — справжній захист).
+- **Home page cleanup** — Home сторінка стає landing page для відвідувачів. CRUD-компоненти переносяться на `/admin`. Home буде базою для hero section, featured products, categories (пізніший етап).
+
+**Scope:**
+
+- Створити `adminMiddleware` на бекенді.
+- Захистити `POST/PUT/DELETE /cards` через authMiddleware + adminMiddleware.
+- Створити `AdminRoute` компонент (фронтенд guard для admin ролі).
+- Створити `AdminPage` (`/admin`) з управлінням товарами.
+- Перенести `AddProductForm`, `EditProductModal`, `DeleteButton` на AdminPage.
+- Очистити Home сторінку від CRUD-компонентів.
+- Додати лінк на /admin у Header/навігації (тільки для admin).
+- **НЕ** робимо admin dashboard (статистика, графіки) — post-MVP.
+- **НЕ** робимо CRUD для категорій окремо — поки що category це поле товару.
+- **НЕ** робимо bulk operations (масове видалення) — post-MVP.
+- **НЕ** робимо image upload (поки URL) — post-MVP.
+
+**Що зробити (покроково):**
+
+### Крок 1 — Створити `adminMiddleware`
+
+- **Файл:** `backend/src/middleware/adminMiddleware.ts` (create).
+- **Логіка:**
+  1. Перевіряє `req.user` (має бути встановлений authMiddleware, який йде першим у chain).
+  2. Перевіряє `req.user.role === 'admin'`.
+  3. Якщо ні → `403 Forbidden { message: "Доступ заборонено. Потрібна роль адміністратора." }`.
+  4. Якщо так → `next()`.
+- **Чому окремий від authMiddleware?** SRP: auth перевіряє ідентичність (хто ти?), admin перевіряє дозвіл (що тобі дозволено?). В chain: `authMiddleware → adminMiddleware → handler`.
+
+### Крок 2 — Захистити card endpoints
+
+- **Файл:** `backend/src/routes/cards.ts` (update).
+- Підключити middleware до мутаційних ендпоінтів:
+  - `POST /cards` → `[authMiddleware, adminMiddleware]`.
+  - `PUT /cards/:id` → `[authMiddleware, adminMiddleware]`.
+  - `DELETE /cards/:id` → `[authMiddleware, adminMiddleware]`.
+- **GET /cards** і **GET /cards/:id** — залишити публічними (всі юзери переглядають каталог).
+- Імпортувати middleware: `import { authMiddleware } from "../middleware/authMiddleware"` та `import { adminMiddleware } from "../middleware/adminMiddleware"`.
+
+### Крок 3 — Створити `AdminRoute`
+
+- **Файл:** `frontend/src/components/AdminRoute.tsx` (create).
+- **Логіка:**
+  1. Якщо `isLoading` → spinner.
+  2. Якщо `!isAuthenticated` → redirect на `/login`.
+  3. Якщо `user.role !== 'admin'` → redirect на `/` (або показати "Доступ заборонено").
+  4. Якщо admin → рендерити children/Outlet.
+- **Чому окремий від ProtectedRoute?** Різна логіка redirect і різне повідомлення. ProtectedRoute пускає всіх авторизованих, AdminRoute — тільки адмінів.
+
+### Крок 4 — Створити `AdminPage`
+
+- **Файл:** `frontend/src/pages/AdminPage.tsx` (create).
+- **Маршрут:** `/admin` (AdminRoute).
+- **Layout:**
+  1. **Заголовок:** "Адмін-панель" + badge "Адміністратор".
+  2. **Toolbar:** кнопка "Додати товар" (відкриває форму/модалку), пошук по товарах.
+  3. **Список товарів:** таблиця або grid з колонками: ID, зображення, назва, ціна, категорія, наявність, дії (редагувати/видалити).
+  4. **Дії:** кнопки "Редагувати" (відкриває `EditProductModal`) і "Видалити" (підтвердження + `DELETE /cards/:id`).
+  5. **Додавання:** `AddProductForm` або модалка з формою додавання.
+- **Важливо:** перевикористовуємо існуючі компоненти (`AddProductForm`, `EditProductModal`, `DeleteButton`) — НЕ переписуємо з нуля. Можливо знадобиться адаптація пропсів.
+- **Завантаження даних:** `fetchCards()` → відображення у таблиці. Після CRUD-операції — `reload`.
+- **Mobile-first:** на мобілці — картки замість таблиці. На desktop — таблиця.
+
+### Крок 5 — Очистити Home сторінку
+
+- **Файл:** `frontend/src/pages/Home.tsx` (update).
+- Видалити `AddProductForm` і `ProductCard` з CRUD-кнопками.
+- Замінити на: просте повідомлення "Ласкаво просимо до BOTANO SHOP" + кнопка "Перейти до каталогу".
+- Або залишити featured products grid без CRUD-кнопок (показуємо товари, але без редагування).
+- Home стане базою для майбутнього hero section, featured products, newsletter (Етап наступного розвитку).
+
+### Крок 6 — Додати маршрут `/admin`
+
+- **Файл:** `frontend/src/routes/AppRoutes.tsx` (update).
+- Додати: `{ path: "admin", element: <AdminRoute><AdminPage /></AdminRoute> }`.
+
+### Крок 7 — Додати навігацію на /admin
+
+- **Файл:** `frontend/src/layouts/Header.tsx` (update).
+- Якщо `user?.role === 'admin'` → показати додатковий лінк/іконку "Адмін" (наприклад, іконка `Shield` або `Settings`) поруч з Profile.
+- Тільки для admin — звичайні юзери не бачать.
+
+**Файли для створення/змін:**
+
+| Файл | Дія |
+| --- | --- |
+| `backend/src/middleware/adminMiddleware.ts` | **create** |
+| `frontend/src/components/AdminRoute.tsx` | **create** |
+| `frontend/src/pages/AdminPage.tsx` | **create** |
+| `backend/src/routes/cards.ts` | update |
+| `frontend/src/pages/Home.tsx` | update |
+| `frontend/src/routes/AppRoutes.tsx` | update |
+| `frontend/src/layouts/Header.tsx` | update |
+
+**Критерії приймання:**
+
+- `POST/PUT/DELETE /cards` без token → `401`.
+- `POST/PUT/DELETE /cards` з token юзера (role=user) → `403`.
+- `POST/PUT/DELETE /cards` з token адміна (role=admin) → працює як раніше.
+- `GET /cards` і `GET /cards/:id` залишаються публічними.
+- `/admin` доступний тільки для admin ролі.
+- Не-admin юзер на `/admin` → redirect з повідомленням.
+- Не-авторизований на `/admin` → redirect на `/login`.
+- AdminPage: список товарів, додавання, редагування, видалення працюють.
+- Home сторінка очищена від CRUD-форм.
+- Лінк на /admin видно тільки admin юзерам у Header.
+- Existing AddProductForm, EditProductModal, DeleteButton перевикористані (не дубльовані).
+- Mobile-first admin layout.
+- Немає `any`, TypeScript strict.
+
+Виконано. Створено `adminMiddleware` (403 для не-адмінів). POST/PUT/DELETE /cards захищені `authMiddleware → adminMiddleware`. Створено `AdminRoute` (фронтенд guard: гість → /login, user → /, admin → AdminPage). Створено `AdminPage` (`/admin`) з responsive таблицею (desktop) / картками (mobile), inline формою додавання, EditProductModal, DeleteButton. `Home.tsx` очищена від CRUD — тепер landing page з CTA. Лінк `Shield` у Header тільки для admin role.
+
+**Блок E (Auth/Profile/Admin) повністю закритий. Наступний етап — Блок F (Quality): рефакторинг, усунення `any`, централізований error handling, базові тести.**

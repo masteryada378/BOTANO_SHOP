@@ -1,6 +1,8 @@
 import { Router, Request, Response } from "express";
 import type { ResultSetHeader, RowDataPacket } from "mysql2";
 import { pool } from "../database";
+import { authMiddleware } from "../middleware/authMiddleware";
+import { adminMiddleware } from "../middleware/adminMiddleware";
 
 const router = Router();
 
@@ -150,39 +152,85 @@ router.get("/:id", async (req: Request<{ id: string }>, res: Response) => {
     }
 });
 
-// Створити нову картку
-router.post("/", async (req: Request, res: Response) => {
-    const { title, price, image } = req.body;
+/**
+ * POST /cards — створити товар.
+ * PUT /cards/:id — оновити товар.
+ * DELETE /cards/:id — видалити товар.
+ *
+ * Chain: authMiddleware → adminMiddleware → handler.
+ * authMiddleware перевіряє токен і встановлює req.user.
+ * adminMiddleware перевіряє req.user.role === 'admin'.
+ * GET-ендпоінти залишаються публічними — каталог доступний всім.
+ */
+router.post("/", authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
+    /**
+     * Деструктуруємо всі поля, що можуть надійти від адмін-форми.
+     * old_price і in_stock — опціональні (nullable/default у БД).
+     */
+    const { title, price, image, category, description, brand, old_price, in_stock } = req.body;
 
     try {
         const [result] = await pool.query<ResultSetHeader>(
-            "INSERT INTO cards (title, price, image) VALUES (?, ?, ?)",
-            [title, price, image],
+            `INSERT INTO cards
+             (title, price, image, category, description, brand, old_price, in_stock)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                title,
+                price,
+                image ?? null,
+                category ?? null,
+                description ?? null,
+                brand ?? null,
+                old_price ?? null,
+                // Конвертуємо boolean/string в 0/1 для MySQL TINYINT
+                in_stock !== undefined ? (in_stock ? 1 : 0) : 1,
+            ],
         );
 
-        const newCard = {
+        res.status(201).json({
             id: result.insertId,
             title,
             price,
             image,
-        };
-
-        res.status(201).json(newCard);
+            category,
+            description,
+            brand,
+            old_price,
+            in_stock,
+        });
     } catch (err) {
         console.error("DB error:", err);
         res.status(500).json({ error: "Database error" });
     }
 });
 
-// Оновити картку
-router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
+// Оновити картку (тільки admin)
+router.put("/:id", authMiddleware, adminMiddleware, async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
-    const { title, price, image } = req.body;
+    /**
+     * Приймаємо всі поля картки.
+     * Undefined-значення перетворюємо на null, щоб очищувати поля при потребі.
+     */
+    const { title, price, image, category, description, brand, old_price, in_stock } = req.body;
 
     try {
         const [result] = await pool.query<ResultSetHeader>(
-            "UPDATE cards SET title = ?, price = ?, image = ? WHERE id = ?",
-            [title, price, image, id],
+            `UPDATE cards
+             SET title = ?, price = ?, image = ?,
+                 category = ?, description = ?, brand = ?,
+                 old_price = ?, in_stock = ?
+             WHERE id = ?`,
+            [
+                title,
+                price,
+                image ?? null,
+                category ?? null,
+                description ?? null,
+                brand ?? null,
+                old_price ?? null,
+                in_stock !== undefined ? (in_stock ? 1 : 0) : 1,
+                id,
+            ],
         );
 
         if (result.affectedRows === 0) {
@@ -190,7 +238,7 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
             return;
         }
 
-        res.status(200).json({ id, title, price, image });
+        res.status(200).json({ id, title, price, image, category, description, brand, old_price, in_stock });
         return;
     } catch (err) {
         console.error("DB error:", err);
@@ -199,7 +247,8 @@ router.put("/:id", async (req: Request<{ id: string }>, res: Response) => {
     }
 });
 
-router.delete("/:id", async (req: Request<{ id: string }>, res: Response) => {
+// Видалити картку (тільки admin)
+router.delete("/:id", authMiddleware, adminMiddleware, async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
 
     const cardId = parseInt(id, 10);

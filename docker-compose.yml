@@ -9,6 +9,12 @@ services:
             - ./backend:/app
         environment:
             - PORT=5005
+            - DB_HOST=db
+            - DB_USER=user
+            - DB_PASSWORD=password
+            - DB_NAME=spor_shop
+            - JWT_SECRET=botano_dev_secret_change_in_production
+            - JWT_EXPIRES_IN=7d
         # --- Task #4: Wait for DB to be healthy ---
         depends_on:
             db:

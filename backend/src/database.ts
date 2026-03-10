@@ -42,6 +42,30 @@ export const pool = mysql.createPool({
  */
 export const runMigrations = async (): Promise<void> => {
     /**
+     * Таблиця користувачів — має бути першою, бо orders матиме FK на users.
+     *
+     * email UNIQUE — один акаунт = один email. БД гарантує унікальність
+     * навіть при race condition на рівні застосунку.
+     *
+     * role ENUM('user','admin') — обмежує допустимі значення на рівні БД.
+     * SQL injection або баг не зможуть записати довільну роль.
+     *
+     * password_hash — зберігаємо тільки bcrypt-хеш, ніколи plaintext.
+     */
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            role ENUM('user', 'admin') DEFAULT 'user',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    console.log("✅ Table users is ready");
+
+    /**
      * Таблиця замовлень.
      * title і price в order_items — snapshot на момент замовлення.
      * status "pending" за замовчуванням — lifecycle: pending → confirmed → shipped → completed.
@@ -80,6 +104,44 @@ export const runMigrations = async (): Promise<void> => {
     `);
 
     console.log("✅ Tables orders and order_items are ready");
+
+    /**
+     * Прив'язка замовлень до авторизованих юзерів (Task #21).
+     *
+     * Чому nullable FK, а не NOT NULL?
+     * — Існуючі замовлення (до Task #21) не мають user_id — NULL дозволяє зберегти їх.
+     *   Guest checkout залишається можливим: анонімне замовлення = user_id IS NULL.
+     *
+     * Чому ON DELETE SET NULL, а не CASCADE?
+     * — При видаленні акаунту замовлення мають залишатися (бухгалтерія, статистика),
+     *   але user_id стане NULL (анонімізація без втрати даних).
+     *
+     * Чому два окремих ALTER (колонка + FK)?
+     * — MySQL вимагає, щоб колонка існувала до додавання FK на неї.
+     *   Розділяємо на дві ідемпотентні перевірки через SHOW COLUMNS / SHOW CREATE TABLE.
+     */
+    const ordersUserIdExists = await pool.query(
+        "SHOW COLUMNS FROM orders LIKE 'user_id'",
+    );
+    const ordersColumns = ordersUserIdExists[0] as unknown[];
+    if (ordersColumns.length === 0) {
+        await pool.query(
+            "ALTER TABLE orders ADD COLUMN user_id INT DEFAULT NULL",
+        );
+        console.log("✅ Migration applied: added column 'user_id' to orders");
+    }
+
+    // Додаємо FK тільки якщо він ще не існує (перевірка через SHOW CREATE TABLE)
+    const [createTableRows] = await pool.query("SHOW CREATE TABLE orders");
+    const createTableStr = JSON.stringify(createTableRows);
+    if (!createTableStr.includes("fk_orders_user")) {
+        await pool.query(`
+            ALTER TABLE orders
+            ADD CONSTRAINT fk_orders_user
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        `);
+        console.log("✅ Migration applied: added FK fk_orders_user to orders");
+    }
 
     const migrations: { column: string; sql: string }[] = [
         {

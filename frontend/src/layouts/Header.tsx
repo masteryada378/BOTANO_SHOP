@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { ShoppingCart, User, Search, Menu, X, Zap } from "lucide-react";
+import { ShoppingCart, User, Search, Menu, X, Zap, Shield } from "lucide-react";
 import { useAppContext } from "../context/AppContext";
+import { useAuth } from "../context/AuthContext";
 import { useDebounce } from "../hooks/useDebounce";
 import { useClickOutside } from "../hooks/useClickOutside";
 import { SearchSuggestions } from "../components/SearchSuggestions";
@@ -31,6 +32,7 @@ const getCartLabelSuffix = (n: number): string => {
 
 export const Header = () => {
     const { totalItems } = useAppContext();
+    const { user, isAuthenticated } = useAuth();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -124,13 +126,46 @@ export const Header = () => {
                         )}
                     </Link>
 
-                    <Link
-                        to="/profile"
-                        aria-label="Профіль користувача"
-                        className="rounded-md p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
-                    >
-                        <User size={20} aria-hidden="true" />
-                    </Link>
+                    {/*
+                     * Admin іконка — видима тільки для role=admin.
+                     * Звичайні юзери не бачать посилання на /admin взагалі.
+                     * Реальний захист — adminMiddleware на бекенді.
+                     */}
+                    {user?.role === "admin" && (
+                        <Link
+                            to="/admin"
+                            aria-label="Адмін-панель"
+                            className="rounded-md p-2 text-violet-400 hover:bg-violet-600/20 hover:text-violet-300 transition-colors"
+                        >
+                            <Shield size={20} aria-hidden="true" />
+                        </Link>
+                    )}
+
+                    {/*
+                     * Умовний рендер: гість → /login, авторизований → /profile.
+                     * aria-label містить ім'я юзера для авторизованих (кращий a11y + UX).
+                     */}
+                    {isAuthenticated ? (
+                        <Link
+                            to="/profile"
+                            aria-label={`Профіль — ${user?.name}`}
+                            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+                        >
+                            <User size={20} aria-hidden="true" />
+                            {/* Ім'я тільки на desktop (md+), щоб не захаращувати mobile header */}
+                            <span className="hidden md:block text-sm font-medium text-gray-300 max-w-[80px] truncate">
+                                {user?.name}
+                            </span>
+                        </Link>
+                    ) : (
+                        <Link
+                            to="/login"
+                            aria-label="Увійти до акаунту"
+                            className="rounded-md p-2 text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+                        >
+                            <User size={20} aria-hidden="true" />
+                        </Link>
+                    )}
 
                     <button
                         onClick={toggleMenu}

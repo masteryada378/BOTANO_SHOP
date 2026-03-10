@@ -45,10 +45,20 @@ if (!BASE_URL) {
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${BASE_URL}${path}`;
 
+    /**
+     * Токен читається з localStorage при КОЖНОМУ запиті (не кешується у змінній модуля).
+     * Це гарантує актуальний токен після login/logout без потреби оновлювати зовнішній стан.
+     * Ключ botano_token — з префіксом проєкту, аналогічно botano_cart.
+     */
+    const token = localStorage.getItem("botano_token");
+    const authHeader: Record<string, string> = token
+        ? { Authorization: `Bearer ${token}` }
+        : {};
+
     const response = await fetch(url, {
         headers: {
             "Content-Type": "application/json",
-            // Місце для майбутнього Authorization: `Bearer ${token}`
+            ...authHeader,
             ...options.headers,
         },
         ...options,
