@@ -8,6 +8,7 @@ import {
     Heart,
     CircleUserRound,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 interface BottomNavItem {
     to: string;
@@ -22,46 +23,53 @@ interface BottomNavigationProps {
     cartItemsCount?: number;
 }
 
-const bottomNavItems: BottomNavItem[] = [
-    {
-        to: "/",
-        label: "Home",
-        ariaLabel: "Go to home page",
-        icon: <House />,
-        enabled: true,
-    },
-    {
-        to: "/catalog",
-        label: "Catalog",
-        ariaLabel: "Go to catalog page",
-        icon: <List />,
-        enabled: true,
-    },
-    {
-        to: "/cart",
-        label: "Cart",
-        ariaLabel: "Go to cart page",
-        icon: <ShoppingCart />,
-        // Увімкнено після Task #17 — сторінка кошика реалізована
-        enabled: true,
-    },
-    {
-        to: "/wishlist",
-        label: "Wishlist",
-        ariaLabel: "Go to wishlist page",
-        icon: <Heart />,
-        enabled: false,
-    },
-    {
-        to: "/profile",
-        label: "Profile",
-        ariaLabel: "Go to profile page",
-        icon: <CircleUserRound />,
-        enabled: false,
-    },
-];
-
 export const BottomNavigation = ({ cartItemsCount }: BottomNavigationProps) => {
+    /**
+     * Profile tab: авторизований → /profile, гість → /login.
+     * Динамічний to замість статичного масиву — залежить від auth стану.
+     */
+    const { isAuthenticated } = useAuth();
+
+    const bottomNavItems: BottomNavItem[] = [
+        {
+            to: "/",
+            label: "Home",
+            ariaLabel: "Go to home page",
+            icon: <House />,
+            enabled: true,
+        },
+        {
+            to: "/catalog",
+            label: "Catalog",
+            ariaLabel: "Go to catalog page",
+            icon: <List />,
+            enabled: true,
+        },
+        {
+            to: "/cart",
+            label: "Cart",
+            ariaLabel: "Go to cart page",
+            icon: <ShoppingCart />,
+            enabled: true,
+        },
+        {
+            to: "/wishlist",
+            label: "Wishlist",
+            ariaLabel: "Go to wishlist page",
+            icon: <Heart />,
+            // Wishlist — post-MVP, залишається disabled до Task #25+
+            enabled: false,
+        },
+        {
+            // Гість → /login, авторизований → /profile (обидва маршрути реалізовані)
+            to: isAuthenticated ? "/profile" : "/login",
+            label: "Profile",
+            ariaLabel: isAuthenticated ? "Go to profile page" : "Sign in",
+            icon: <CircleUserRound />,
+            enabled: true,
+        },
+    ];
+
     return (
         /*
          * fixed + bottom-0: єдиний надійний спосіб "завжди внизу viewport при скролі"

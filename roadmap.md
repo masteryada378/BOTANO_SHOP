@@ -542,7 +542,7 @@ export interface AuthenticatedRequest extends Request {
 
 ---
 
-## 27) Task #20 — Login/Register сторінки + AuthContext + protected routes
+## 27) Task #20 ✅ — Login/Register сторінки + AuthContext + protected routes
 
 **Назва:** Фронтенд автентифікація: AuthContext, Login/Register сторінки, ProtectedRoute, інтеграція токену в api.ts
 
