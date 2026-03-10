@@ -61,13 +61,19 @@ export const searchCards = (query: string): Promise<Card[]> =>
 
 /**
  * Оновити картку.
- * Повертаємо void — відповідь бекенду нас не цікавить, лише успіх/помилка.
+ * Передаємо всі поля з типу Card (без id — він у URL).
+ * Бекенд очищує поля, що мають значення null/undefined.
  */
 export const updateCard = (card: Card): Promise<void> =>
   apiPut<void>(`${RESOURCE}/${card.id}`, {
     title: card.title,
     price: card.price,
     image: card.image,
+    category: card.category,
+    description: card.description,
+    brand: card.brand,
+    old_price: card.old_price,
+    in_stock: card.in_stock,
   });
 
 /** Видалити картку за id */

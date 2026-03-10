@@ -14,8 +14,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Shield, Plus, X, Package } from "lucide-react";
-import { fetchCards } from "../services/cardService";
+import { fetchCards, createCard } from "../services/cardService";
 import { Card } from "../types/Card";
+import { CATEGORIES } from "../types/catalog";
 import { Breadcrumbs } from "../components/Breadcrumbs";
 import { EditProductModal } from "../components/EditProductModal";
 import DeleteButton from "../components/DeleteButton";
@@ -29,21 +30,30 @@ const SKELETON_ROWS = 5;
 interface AddFormState {
     title: string;
     price: string;
+    old_price: string;
     image: string;
     category: string;
+    brand: string;
+    description: string;
+    in_stock: boolean;
 }
 
 const EMPTY_FORM: AddFormState = {
     title: "",
     price: "",
+    old_price: "",
     image: "",
     category: "",
+    brand: "",
+    description: "",
+    in_stock: true,
 };
 
 /**
  * Inline форма для додавання нового товару.
  * Виведена в окремий sub-компонент щоб не захаращувати AdminPage.
- * onSuccess — колбек після успішного додавання (перезавантажує список).
+ * Підтримує всі поля типу Card: title, price, old_price, image,
+ * category (select), brand, description, in_stock (checkbox).
  */
 const AddProductInlineForm = ({
     onSuccess,
@@ -56,8 +66,17 @@ const AddProductInlineForm = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
+    const handleChange = (
+        e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+    ) => {
+        const { name, value, type } = e.target;
+        if (type === "checkbox") {
+            setForm((prev) => ({
+                ...prev,
+                [name]: (e.target as HTMLInputElement).checked,
+            }));
+            return;
+        }
         setForm((prev) => ({ ...prev, [name]: value }));
     };
 
@@ -67,13 +86,15 @@ const AddProductInlineForm = ({
         setIsSubmitting(true);
 
         try {
-            // Динамічний імпорт щоб уникнути циклічних залежностей при tree-shaking
-            const { createCard } = await import("../services/cardService");
             await createCard({
                 title: form.title.trim(),
                 price: parseFloat(form.price),
+                old_price: form.old_price ? parseFloat(form.old_price) : undefined,
                 image: form.image.trim() || undefined,
-                category: form.category.trim() || undefined,
+                category: form.category || undefined,
+                brand: form.brand.trim() || undefined,
+                description: form.description.trim() || undefined,
+                in_stock: form.in_stock,
             });
             setForm(EMPTY_FORM);
             onSuccess();
@@ -85,71 +106,156 @@ const AddProductInlineForm = ({
     };
 
     const inputClass =
-        "w-full rounded-lg bg-gray-800 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 ring-1 ring-gray-700 outline-none focus:ring-violet-500 transition";
+        "w-full rounded-lg bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder-gray-500 ring-1 ring-gray-700 outline-none focus:ring-violet-500 transition";
 
     return (
         <form
             onSubmit={handleSubmit}
             aria-label="Форма додавання товару"
-            className="rounded-xl border border-violet-500/30 bg-gray-800/50 p-5 space-y-3"
+            className="rounded-xl border border-violet-500/30 bg-gray-800/50 p-5 space-y-4"
         >
             <h3 className="text-sm font-semibold uppercase tracking-wider text-violet-400">
                 Новий товар
             </h3>
 
-            {/* Назва + категорія в ряд на desktop */}
+            {/* Назва + бренд */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input
-                    type="text"
-                    name="title"
-                    placeholder="Назва товару *"
-                    value={form.title}
-                    onChange={handleChange}
-                    className={inputClass}
-                    required
-                    minLength={2}
-                />
-                <input
-                    type="text"
+                <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                        Назва товару *
+                    </label>
+                    <input
+                        type="text"
+                        name="title"
+                        placeholder="Spider-Man #1"
+                        value={form.title}
+                        onChange={handleChange}
+                        className={inputClass}
+                        required
+                        minLength={2}
+                    />
+                </div>
+                <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                        Бренд
+                    </label>
+                    <input
+                        type="text"
+                        name="brand"
+                        placeholder="Marvel, Funko Pop..."
+                        value={form.brand}
+                        onChange={handleChange}
+                        className={inputClass}
+                    />
+                </div>
+            </div>
+
+            {/* Категорія — випадаючий список */}
+            <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                    Категорія
+                </label>
+                <select
                     name="category"
-                    placeholder="Категорія (Comics, Figures...)"
                     value={form.category}
                     onChange={handleChange}
                     className={inputClass}
-                />
+                >
+                    <option value="">— Без категорії —</option>
+                    {CATEGORIES.map(({ value, label }) => (
+                        <option key={value} value={value}>
+                            {label}
+                        </option>
+                    ))}
+                </select>
             </div>
 
-            {/* Ціна + URL зображення в ряд на desktop */}
+            {/* Ціна + Стара ціна */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <input
-                    type="number"
-                    name="price"
-                    placeholder="Ціна, ₴ *"
-                    step="0.01"
-                    min="0"
-                    value={form.price}
-                    onChange={handleChange}
-                    className={inputClass}
-                    required
-                />
+                <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                        Ціна, ₴ *
+                    </label>
+                    <input
+                        type="number"
+                        name="price"
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        value={form.price}
+                        onChange={handleChange}
+                        className={inputClass}
+                        required
+                    />
+                </div>
+                <div>
+                    <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                        Стара ціна, ₴{" "}
+                        <span className="text-gray-600">(знижка)</span>
+                    </label>
+                    <input
+                        type="number"
+                        name="old_price"
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                        value={form.old_price}
+                        onChange={handleChange}
+                        className={inputClass}
+                    />
+                </div>
+            </div>
+
+            {/* URL зображення */}
+            <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                    URL зображення
+                </label>
                 <input
                     type="url"
                     name="image"
-                    placeholder="URL зображення"
+                    placeholder="https://..."
                     value={form.image}
                     onChange={handleChange}
                     className={inputClass}
                 />
             </div>
 
-            {/* Повідомлення про помилку */}
+            {/* Опис */}
+            <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-400">
+                    Опис
+                </label>
+                <textarea
+                    name="description"
+                    placeholder="Детальний опис товару..."
+                    value={form.description}
+                    onChange={handleChange}
+                    rows={3}
+                    className={`${inputClass} resize-none`}
+                />
+            </div>
+
+            {/* В наявності */}
+            <label className="flex cursor-pointer items-center gap-3">
+                <input
+                    type="checkbox"
+                    name="in_stock"
+                    checked={form.in_stock}
+                    onChange={handleChange}
+                    className="h-4 w-4 rounded border-gray-600 bg-gray-900 accent-violet-500"
+                />
+                <span className="text-sm text-gray-300">В наявності</span>
+            </label>
+
+            {/* Помилка */}
             {error && (
                 <p role="alert" className="text-sm text-red-400">
                     {error}
                 </p>
             )}
 
-            <div className="flex gap-2 justify-end">
+            <div className="flex gap-2 justify-end pt-1">
                 <button
                     type="button"
                     onClick={onCancel}

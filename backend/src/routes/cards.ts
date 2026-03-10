@@ -163,22 +163,41 @@ router.get("/:id", async (req: Request<{ id: string }>, res: Response) => {
  * GET-ендпоінти залишаються публічними — каталог доступний всім.
  */
 router.post("/", authMiddleware, adminMiddleware, async (req: Request, res: Response) => {
-    const { title, price, image } = req.body;
+    /**
+     * Деструктуруємо всі поля, що можуть надійти від адмін-форми.
+     * old_price і in_stock — опціональні (nullable/default у БД).
+     */
+    const { title, price, image, category, description, brand, old_price, in_stock } = req.body;
 
     try {
         const [result] = await pool.query<ResultSetHeader>(
-            "INSERT INTO cards (title, price, image) VALUES (?, ?, ?)",
-            [title, price, image],
+            `INSERT INTO cards
+             (title, price, image, category, description, brand, old_price, in_stock)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                title,
+                price,
+                image ?? null,
+                category ?? null,
+                description ?? null,
+                brand ?? null,
+                old_price ?? null,
+                // Конвертуємо boolean/string в 0/1 для MySQL TINYINT
+                in_stock !== undefined ? (in_stock ? 1 : 0) : 1,
+            ],
         );
 
-        const newCard = {
+        res.status(201).json({
             id: result.insertId,
             title,
             price,
             image,
-        };
-
-        res.status(201).json(newCard);
+            category,
+            description,
+            brand,
+            old_price,
+            in_stock,
+        });
     } catch (err) {
         console.error("DB error:", err);
         res.status(500).json({ error: "Database error" });
@@ -188,12 +207,30 @@ router.post("/", authMiddleware, adminMiddleware, async (req: Request, res: Resp
 // Оновити картку (тільки admin)
 router.put("/:id", authMiddleware, adminMiddleware, async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
-    const { title, price, image } = req.body;
+    /**
+     * Приймаємо всі поля картки.
+     * Undefined-значення перетворюємо на null, щоб очищувати поля при потребі.
+     */
+    const { title, price, image, category, description, brand, old_price, in_stock } = req.body;
 
     try {
         const [result] = await pool.query<ResultSetHeader>(
-            "UPDATE cards SET title = ?, price = ?, image = ? WHERE id = ?",
-            [title, price, image, id],
+            `UPDATE cards
+             SET title = ?, price = ?, image = ?,
+                 category = ?, description = ?, brand = ?,
+                 old_price = ?, in_stock = ?
+             WHERE id = ?`,
+            [
+                title,
+                price,
+                image ?? null,
+                category ?? null,
+                description ?? null,
+                brand ?? null,
+                old_price ?? null,
+                in_stock !== undefined ? (in_stock ? 1 : 0) : 1,
+                id,
+            ],
         );
 
         if (result.affectedRows === 0) {
@@ -201,7 +238,7 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req: Request<{ id: st
             return;
         }
 
-        res.status(200).json({ id, title, price, image });
+        res.status(200).json({ id, title, price, image, category, description, brand, old_price, in_stock });
         return;
     } catch (err) {
         console.error("DB error:", err);
