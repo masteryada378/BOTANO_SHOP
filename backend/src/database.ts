@@ -105,6 +105,44 @@ export const runMigrations = async (): Promise<void> => {
 
     console.log("✅ Tables orders and order_items are ready");
 
+    /**
+     * Прив'язка замовлень до авторизованих юзерів (Task #21).
+     *
+     * Чому nullable FK, а не NOT NULL?
+     * — Існуючі замовлення (до Task #21) не мають user_id — NULL дозволяє зберегти їх.
+     *   Guest checkout залишається можливим: анонімне замовлення = user_id IS NULL.
+     *
+     * Чому ON DELETE SET NULL, а не CASCADE?
+     * — При видаленні акаунту замовлення мають залишатися (бухгалтерія, статистика),
+     *   але user_id стане NULL (анонімізація без втрати даних).
+     *
+     * Чому два окремих ALTER (колонка + FK)?
+     * — MySQL вимагає, щоб колонка існувала до додавання FK на неї.
+     *   Розділяємо на дві ідемпотентні перевірки через SHOW COLUMNS / SHOW CREATE TABLE.
+     */
+    const ordersUserIdExists = await pool.query(
+        "SHOW COLUMNS FROM orders LIKE 'user_id'",
+    );
+    const ordersColumns = ordersUserIdExists[0] as unknown[];
+    if (ordersColumns.length === 0) {
+        await pool.query(
+            "ALTER TABLE orders ADD COLUMN user_id INT DEFAULT NULL",
+        );
+        console.log("✅ Migration applied: added column 'user_id' to orders");
+    }
+
+    // Додаємо FK тільки якщо він ще не існує (перевірка через SHOW CREATE TABLE)
+    const [createTableRows] = await pool.query("SHOW CREATE TABLE orders");
+    const createTableStr = JSON.stringify(createTableRows);
+    if (!createTableStr.includes("fk_orders_user")) {
+        await pool.query(`
+            ALTER TABLE orders
+            ADD CONSTRAINT fk_orders_user
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+        `);
+        console.log("✅ Migration applied: added FK fk_orders_user to orders");
+    }
+
     const migrations: { column: string; sql: string }[] = [
         {
             column: "category",

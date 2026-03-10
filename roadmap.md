@@ -743,7 +743,7 @@ type AuthContextType = {
 
 ---
 
-## 28) Task #21 — Backend orders auth integration (user_id + GET /orders)
+## 28) Task #21 ✅ — Backend orders auth integration (user_id + GET /orders)
 
 **Назва:** Зв'язати замовлення з авторизованими юзерами, додати ендпоінти для отримання замовлень
 
