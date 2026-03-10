@@ -6,7 +6,8 @@ import { BottomNavigation } from "../layouts/BottomNavigation";
 import { useAppContext } from "../context/AppContext";
 
 export const Layout: React.FC = () => {
-    const { cart } = useAppContext();
+    // totalItems — сума quantity (враховує кількість одиниць, а не унікальні позиції)
+    const { totalItems } = useAppContext();
 
     return (
         <div className="flex min-h-screen flex-col bg-gray-950 text-gray-100">
@@ -25,7 +26,7 @@ export const Layout: React.FC = () => {
                 <Outlet />
             </main>
             <Footer />
-            <BottomNavigation cartItemsCount={cart.length} />
+            <BottomNavigation cartItemsCount={totalItems} />
         </div>
     );
 };

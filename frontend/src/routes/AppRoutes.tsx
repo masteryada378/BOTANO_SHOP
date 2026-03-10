@@ -3,6 +3,8 @@ import { Layout } from "../components/Layout";
 import HomePage from "../pages/Home";
 import { CatalogPage } from "../pages/Catalog";
 import { ProductDetail } from "../pages/ProductDetail";
+import { CartPage } from "../pages/CartPage";
+import { CheckoutPage } from "../pages/CheckoutPage";
 
 const router = createBrowserRouter([
     {
@@ -25,6 +27,16 @@ const router = createBrowserRouter([
             {
                 path: "product/:id",
                 element: <ProductDetail />,
+            },
+            /** Сторінка кошика — Task #17 */
+            {
+                path: "cart",
+                element: <CartPage />,
+            },
+            /** Сторінка оформлення замовлення — Task #18 */
+            {
+                path: "checkout",
+                element: <CheckoutPage />,
             },
             // {
             //     path: "/login",
