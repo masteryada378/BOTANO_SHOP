@@ -4,6 +4,11 @@
  * Чому окремий сервіс?
  * — SRP: компонент рендерить UI, сервіс — транспорт (HTTP).
  *   Якщо ендпоінт зміниться — правимо тут, а не у JSX.
+ *
+ * Чому не в api.ts?
+ * — api.ts — низькорівневий клієнт (request, apiGet, apiPost).
+ *   orderService.ts — бізнес-логіка: знає про структуру замовлення,
+ *   формує правильний body, типізує відповідь.
  */
 
 import { apiGet, apiPost } from "./api";
@@ -24,6 +29,11 @@ export interface CreateOrderResponse {
  * Чому items передаються явно, а не береться з контексту?
  * — Сервіс не знає про React Context — залежність від фреймворку у шарі services
  *   порушує принцип розподілу відповідальностей. Caller (компонент) передає дані явно.
+ *
+ * Чому перетворюємо cartItems → items?
+ * — CartItem має поля, які не потрібні бекенду (наприклад, imageUrl, category).
+ *   Передаємо тільки те, що потрібно: product_id, title, price, quantity.
+ *   Це зменшує payload і відокремлює контракт API від внутрішньої структури кошика.
  */
 export const createOrder = (
     formData: CheckoutFormData,
@@ -50,14 +60,23 @@ export const createOrder = (
 /**
  * Отримати список замовлень авторизованого юзера.
  * GET /orders — захищений ендпоінт (authMiddleware на бекенді).
- * Токен автоматично додається у request() з localStorage.
+ *
+ * Токен автоматично додається у request() з localStorage —
+ * не потрібно передавати його явно тут.
+ *
+ * Повертає масив OrderSummary (без items) — для швидкого списку.
+ * Деталі завантажуються окремо через fetchOrderById при expand.
  */
 export const fetchOrders = (): Promise<OrderSummary[]> => apiGet("/orders");
 
 /**
  * Отримати деталі одного замовлення з позиціями.
- * GET /orders/:id — бекенд перевіряє ownership (юзер бачить тільки свої замовлення).
- * 404 якщо замовлення чуже або не існує.
+ * GET /orders/:id — бекенд перевіряє ownership:
+ * юзер бачить тільки свої замовлення (403/404 для чужих).
+ *
+ * Чому lazy loading, а не завантажити всі деталі одразу?
+ * — При 10+ замовленнях завантаження всіх деталей одразу — зайве навантаження.
+ *   Юзер часто переглядає лише 1-2 замовлення з усього списку.
  */
 export const fetchOrderById = (id: number): Promise<OrderDetail> =>
     apiGet(`/orders/${id}`);
