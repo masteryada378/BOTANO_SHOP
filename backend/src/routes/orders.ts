@@ -120,7 +120,7 @@ router.post(
 
         // Серверний перерахунок суми — захист від підробки на клієнті
         const total_price = items.reduce(
-            (sum, item) => sum + item.price * item.quantity,
+            (sum: number, item: OrderItem) => sum + item.price * item.quantity,
             0,
         );
 
@@ -155,7 +155,7 @@ router.post(
             const orderId = orderResult.insertId;
 
             // Вставляємо всі позиції одним batch-запитом
-            const itemValues = items.map((item) => [
+            const itemValues = items.map((item: OrderItem) => [
                 orderId,
                 item.product_id,
                 item.title,
