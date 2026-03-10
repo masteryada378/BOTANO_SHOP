@@ -42,6 +42,30 @@ export const pool = mysql.createPool({
  */
 export const runMigrations = async (): Promise<void> => {
     /**
+     * Таблиця користувачів — має бути першою, бо orders матиме FK на users.
+     *
+     * email UNIQUE — один акаунт = один email. БД гарантує унікальність
+     * навіть при race condition на рівні застосунку.
+     *
+     * role ENUM('user','admin') — обмежує допустимі значення на рівні БД.
+     * SQL injection або баг не зможуть записати довільну роль.
+     *
+     * password_hash — зберігаємо тільки bcrypt-хеш, ніколи plaintext.
+     */
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            role ENUM('user', 'admin') DEFAULT 'user',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    console.log("✅ Table users is ready");
+
+    /**
      * Таблиця замовлень.
      * title і price в order_items — snapshot на момент замовлення.
      * status "pending" за замовчуванням — lifecycle: pending → confirmed → shipped → completed.

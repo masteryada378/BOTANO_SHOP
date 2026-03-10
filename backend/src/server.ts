@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import cardRoutes from "./routes/cards";
 import ordersRouter from "./routes/orders";
+import authRouter from "./routes/auth";
 import { runMigrations } from "./database";
 
 dotenv.config();
@@ -20,6 +21,8 @@ app.use(express.json());
 
 app.use("/cards", cardRoutes);
 app.use("/orders", ordersRouter);
+// Auth routes: POST /auth/register, POST /auth/login, GET /auth/me
+app.use("/auth", authRouter);
 
 app.get("/api/health", (_req, res) => {
     res.send({ message: "Server is running" });
