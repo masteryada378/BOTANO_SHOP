@@ -31,10 +31,56 @@ export const pool = mysql.createPool({
  * — ALTER TABLE завершиться помилкою, якщо колонка вже існує.
  *   Перевірка дозволяє зробити міграцію ідемпотентною (безпечний повторний запуск).
  *
- * Чому окремий ALTER для кожної колонки?
- * — Якщо одна колонка вже є, решта все одно додадуться без помилок.
+ * Чому CREATE TABLE IF NOT EXISTS для нових таблиць?
+ * — На відміну від ALTER, CREATE TABLE IF NOT EXISTS вже ідемпотентна за замовчуванням.
+ *   Не потрібна додаткова перевірка EXISTS.
+ *
+ * Чому orders + order_items (дві таблиці)?
+ * — Нормалізація: одне замовлення може містити багато товарів.
+ *   Якщо зберігати всі товари в одному полі orders — втрачаємо можливість
+ *   запитати "всі замовлення, що містять товар X" або порахувати статистику.
  */
 export const runMigrations = async (): Promise<void> => {
+    /**
+     * Таблиця замовлень.
+     * title і price в order_items — snapshot на момент замовлення.
+     * status "pending" за замовчуванням — lifecycle: pending → confirmed → shipped → completed.
+     */
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS orders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            customer_name VARCHAR(255) NOT NULL,
+            customer_phone VARCHAR(50) NOT NULL,
+            customer_email VARCHAR(255) NOT NULL,
+            delivery_method VARCHAR(50) NOT NULL,
+            delivery_address TEXT NOT NULL,
+            payment_method VARCHAR(50) NOT NULL,
+            total_price DECIMAL(10,2) NOT NULL,
+            status VARCHAR(50) DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    /**
+     * Позиції замовлення (нормалізована структура).
+     * title і price — snapshot: якщо товар перейменують/змінять ціну —
+     * старі замовлення зберігають оригінальні дані.
+     * ON DELETE CASCADE: при видаленні замовлення — всі його позиції теж видаляються.
+     */
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS order_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            order_id INT NOT NULL,
+            product_id INT NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            price DECIMAL(10,2) NOT NULL,
+            quantity INT NOT NULL,
+            FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+        )
+    `);
+
+    console.log("✅ Tables orders and order_items are ready");
+
     const migrations: { column: string; sql: string }[] = [
         {
             column: "category",

@@ -244,7 +244,15 @@ export const ProductDetail = () => {
                         <button
                             type="button"
                             disabled={!isAvailable}
-                            onClick={() => addToCart(product.id)}
+                            onClick={() =>
+                                // Price snapshot: ціна фіксується на момент додавання
+                                addToCart({
+                                    id: product.id,
+                                    title: product.title,
+                                    price: product.price,
+                                    image: product.image,
+                                })
+                            }
                             className={cn(
                                 "flex flex-1 items-center justify-center gap-2 rounded-xl py-3 text-lg font-semibold text-white transition-colors",
                                 isAvailable

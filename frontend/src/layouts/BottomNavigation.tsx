@@ -42,7 +42,8 @@ const bottomNavItems: BottomNavItem[] = [
         label: "Cart",
         ariaLabel: "Go to cart page",
         icon: <ShoppingCart />,
-        enabled: false,
+        // Увімкнено після Task #17 — сторінка кошика реалізована
+        enabled: true,
     },
     {
         to: "/wishlist",

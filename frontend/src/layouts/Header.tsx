@@ -30,7 +30,7 @@ const getCartLabelSuffix = (n: number): string => {
 };
 
 export const Header = () => {
-    const { cart } = useAppContext();
+    const { totalItems } = useAppContext();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
@@ -53,7 +53,8 @@ export const Header = () => {
         if (!isSearchOpen) setSearchQuery("");
     }, [isSearchOpen]);
 
-    const cartCount = cart.length;
+    // totalItems — сума quantity всіх позицій (не кількість унікальних товарів)
+    const cartCount = totalItems;
     const cartLabel =
         cartCount === 0
             ? "Кошик"

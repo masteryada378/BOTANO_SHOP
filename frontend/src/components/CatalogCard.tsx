@@ -15,7 +15,9 @@ export const CatalogCard = ({ id, title, price, image }: CatalogCardProps) => {
 
     const handleAddToCart = (e: React.MouseEvent<HTMLButtonElement>) => {
         e.preventDefault();
-        addToCart(id);
+        // Передаємо повний CartItem (без quantity) — контекст сам встановить quantity: 1
+        // або інкрементує, якщо товар вже є в кошику
+        addToCart({ id, title, price, image });
     };
 
     return (
